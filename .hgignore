@@ -1,5 +1,5 @@
 syntax: glob
 *.psd
 *.7z
-bin/Phonedroid/apk/*
-bin/Phonedroid/bin/*
+bin/*
+gen/*
