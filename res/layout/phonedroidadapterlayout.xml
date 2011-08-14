@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+	android:gravity="top" android:layout_height="wrap_content" android:focusable="false" android:layout_width="fill_parent">
+<LinearLayout android:orientation="vertical" android:layout_height="wrap_content" android:id="@+id/linearLayout5" android:layout_width="fill_parent" android:focusable="false">
+    <LinearLayout android:layout_height="wrap_content" android:id="@+id/linearLayout1" android:layout_width="fill_parent" android:focusable="false">
+        <LinearLayout android:id="@+id/linearLayout4" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="match_parent" android:focusable="false">
+            <ImageView android:id="@+id/al_Img" android:focusable="false" android:layout_width="wrap_content" android:layout_weight="1" android:padding="0px" android:layout_gravity="center" android:layout_height="match_parent" android:src="@drawable/outgoing"></ImageView>
+            <TextView android:text="@string/strDurSample" android:id="@+id/al_Duration" android:textAppearance="?android:attr/textAppearanceSmall" android:focusable="false" android:singleLine="true" android:textStyle="bold" android:layout_gravity="bottom" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_weight="0"></TextView>
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:id="@+id/linearLayout2" android:layout_height="wrap_content" android:layout_width="match_parent" android:layout_weight="1" android:focusable="false">
+            <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:id="@+id/al_Text" android:layout_width="fill_parent" android:text="@string/strContactName" android:singleLine="true" android:textStyle="bold" android:focusable="false" android:paddingLeft="5sp"></TextView>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/linearLayout3" android:focusable="false">
+                <TextView android:text="@string/strNumber" android:textAppearance="?android:attr/textAppearanceSmall" android:id="@+id/al_Number" android:layout_height="wrap_content" android:singleLine="true" android:layout_weight="1" android:layout_width="match_parent" android:focusable="false"></TextView>
+                <TextView android:text="@string/strDateTime" android:textAppearance="?android:attr/textAppearanceSmall" android:singleLine="true" android:id="@+id/al_DateTime" android:layout_height="wrap_content" android:layout_width="wrap_content" android:layout_gravity="top|right" android:textStyle="bold" android:focusable="false" android:layout_weight="0"></TextView>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_height="wrap_content" android:layout_width="fill_parent" android:text="@string/strSampleData" android:id="@+id/al_Data" android:focusable="false"></TextView>
+</LinearLayout>
+<ImageView android:src="@drawable/main" android:layout_width="wrap_content" android:id="@+id/imageView1" android:layout_height="match_parent" android:layout_alignParentRight="true" android:layout_centerVertical="true"></ImageView>    
+</RelativeLayout>

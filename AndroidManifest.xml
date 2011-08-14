@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="Phonedroid.apk"
+      android:versionCode="1"
+      android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="8" />
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" /> 
+  	<uses-permission android:name="android.permission.READ_PHONE_STATE" /> 
+    
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+
+    <application android:label="@string/app_name" android:icon="@drawable/main">
+        <activity android:name=".PhonedroidActivity"
+                  android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+	
+        <activity android:name=".ExpandableList1" android:label="Аццкий заголовок">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SAMPLE_CODE" />
+            </intent-filter>
+        </activity>
+        
+        <activity android:name=".PhoneLogView" android:label="история телефона">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.HOME" />
+            </intent-filter>
+        </activity>
+        
+        <activity 
+        	android:name=".phonedroiadadapterlayout" android:label="item история телефона">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.HOME" />
+            </intent-filter>        	
+        </activity>
+        
+        <receiver android:name=".CallSmsReceiver">
+			<intent-filter>
+  				<action android:name="android.intent.action.PHONE_STATE" /> 
+  			</intent-filter> 
+  		</receiver>    
+ 
+        		
+    </application>
+</manifest>
