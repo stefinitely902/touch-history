@@ -1,4 +1,4 @@
-package Phonedroid.apk;
+package com.savinov3696.phone.log;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

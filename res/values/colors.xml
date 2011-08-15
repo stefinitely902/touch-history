@@ -21,4 +21,5 @@
     <color name="ColorMissed">#FFFF4000</color>
     <color name="ColorDark">#FF202020</color>
     <color name="ColorBlack">#FF000000</color>
+    <color name="ColorTransparent">#00000000</color>
 </resources>

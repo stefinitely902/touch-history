@@ -1,49 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout 
-	xmlns:android="http://schemas.android.com/apk/res/android"
-    android:baselineAligned="false" 
-    android:layout_width="match_parent" 
+	android:layout_width="match_parent" 
     android:layout_height="match_parent" 
-    android:orientation="vertical">
-    <ListView 
-    	android:id="@+id/listView1"
-    	android:layout_width="match_parent"
-    	android:layout_height="wrap_content" android:layout_weight="5">
+    android:orientation="vertical" xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListView 	android:id="@+id/listView1" 
+    			android:layout_height="fill_parent" 
+    			android:layout_width="fill_parent">
     </ListView>
-    <LinearLayout 
-    	android:layout_height="wrap_content" 
-    	android:id="@+id/linearLayout1" 
-    	android:layout_gravity="bottom" 
-    	android:layout_width="match_parent" 
-    	android:layout_weight="0" 
-    	android:baselineAligned="false">
-        <ImageButton 
-        	android:layout_height="wrap_content" 
-        	android:id="@+id/imageButton1" 
-        	android:src="@android:drawable/ic_menu_call" 
-        	android:layout_width="wrap_content" 
-        	android:layout_weight="1"> 
-        </ImageButton>
-        <ImageButton 
-        	android:layout_height="wrap_content" 
-        	android:id="@+id/imageButton5" 
-        	android:src="@android:drawable/ic_menu_send" 
-        	android:layout_width="wrap_content" 
-        	android:layout_weight="1">
-        </ImageButton>
-        <ImageButton 
-        	android:id="@+id/imageButton2" 
-        	android:src="@android:drawable/ic_menu_view" 
-        	android:layout_width="wrap_content" 
-        	android:layout_height="wrap_content" 
-        	android:layout_weight="1">
-        </ImageButton>
-        <ImageButton 
-        	android:layout_height="wrap_content" 
-        	android:id="@+id/imageButton4" 
-        	android:src="@android:drawable/ic_menu_agenda" 
-        	android:layout_width="wrap_content" 
-        	android:layout_weight="1">
-        </ImageButton>
-    </LinearLayout>
 </LinearLayout>

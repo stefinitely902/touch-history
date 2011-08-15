@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent" android:weightSum="1" android:orientation="vertical">
+    <RelativeLayout android:layout_height="wrap_content" android:gravity="top" android:layout_width="fill_parent" android:layout_weight="0" android:focusable="false">
+        <LinearLayout android:id="@+id/linearLayout1" android:layout_height="wrap_content" android:layout_width="match_parent">
+            <ImageView android:layout_height="match_parent" android:layout_gravity="left|center_vertical" android:id="@+id/imageView1" android:layout_width="wrap_content" android:layout_weight="0" android:src="@drawable/outgoingsms"></ImageView>
+            <LinearLayout android:layout_height="wrap_content" android:id="@+id/linearLayout2" android:layout_width="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:singleLine="true" android:textColor="@color/ColorOutgoing" android:paddingLeft="5sp" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:id="@+id/textView3" android:layout_width="match_parent" android:text="@string/strContactName" android:textStyle="bold"></TextView>
+                <TextView android:textColor="@color/ColorOutgoing" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:id="@+id/textView2" android:layout_width="match_parent" android:text="@string/strNumber"></TextView>
+            </LinearLayout>
+        </LinearLayout>
+        <ImageButton android:id="@+id/btnReply" android:layout_alignParentRight="true" android:focusable="false" android:src="@drawable/reply" android:layout_width="wrap_content" android:background="@color/ColorTransparent" android:layout_alignParentTop="true" android:layout_height="wrap_content"></ImageButton>
+    </RelativeLayout>
+    <EditText android:layout_gravity="top" android:id="@+id/editText1" android:inputType="textMultiLine" android:layout_weight="1" android:layout_height="fill_parent" android:layout_width="fill_parent">
+        <requestFocus></requestFocus>
+    </EditText>
+    
+</LinearLayout>

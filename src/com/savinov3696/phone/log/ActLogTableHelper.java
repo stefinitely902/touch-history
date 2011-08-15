@@ -1,4 +1,4 @@
-package Phonedroid.apk;
+package com.savinov3696.phone.log;
 
 import java.security.Provider;
 
@@ -164,11 +164,13 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	        	int _address = cursor.getColumnIndex("address");
     	        	int _person = cursor.getColumnIndex("person");
     	        	int _date = cursor.getColumnIndex("date");
+
     	        	int _protocol = cursor.getColumnIndex("protocol");
     	        	int _read = cursor.getColumnIndex("read");
     	        	int _status = cursor.getColumnIndex("status");
     	        	int _type = cursor.getColumnIndex("type");
     	        	int _reply_path_present = cursor.getColumnIndex("reply_path_present");
+
     	        	int _subject = cursor.getColumnIndex("subject");
     	        	int _body = cursor.getColumnIndex("body");
     	        	int _service_center = cursor.getColumnIndex("service_center");        	
@@ -180,6 +182,29 @@ public class ActLogTableHelper extends SQLiteOpenHelper
 
     	        	while(!cursor.isAfterLast() )
     	        	{
+    	        		/* 
+    	        		Log.d("DEBUG", "\n id="+cursor.getString(_id)+"\t _thread_id="+cursor.getString(_thread_id)+
+    	        				 		"\t _address="+cursor.getString(_address)+
+    	        				 		"\t _person="+cursor.getString(_person)+
+    	        				 		"\t _date="+cursor.getString(_date)+
+    	        				 		
+    	        				 		"\t _protocol="+cursor.getString(_protocol)+
+//    	        				 		"\n _read="+cursor.getString(_read)+
+//    	        				 		"\n _status="+cursor.getString(_status)+
+//    	        				 		"\n _type="+cursor.getString(_type)+
+    	        				 		"\t _reply_path_present="+cursor.getString(_reply_path_present)+
+
+//    	        				 		"\n _subject="+cursor.getString(_subject)+
+    	        				 		"\t _body="+cursor.getString(_body)+
+    	        				 		"\t _service_center="+cursor.getString(_service_center)
+//    	        				 		+"\n _locked="+cursor.getString(_locked)+
+//    	        				 		+"\n _seen="+cursor.getString(_seen)
+    	        				 		);
+    	        		
+    	        		*/
+    	        		
+    	        		
+    	        		
     	        		values.put("ftype", cursor.getInt(_type)+10 ); // Sms based +10
     	        		values.put("fseen", cursor.getLong(_seen));
     	        		values.put("faccount", cursor.getString(_address));
