@@ -39,56 +39,33 @@ fdate DESC,  "order" DESC
 //---------------------------------------------------------------------------------------
  
 */
- 
 
+import java.util.Observer;
 
-import java.util.List;
+import com.savinov3696.phone.log.ActLogTableHelper.TempContact;
 
-import android.R.anim;
-import android.app.Activity;
 import android.app.ListActivity;
-import android.os.Bundle;
-import android.telephony.TelephonyManager;
-import android.text.Layout;
-import android.text.format.DateFormat;
-import android.util.Log;
-
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.ProgressBar;
-import android.widget.TableRow.LayoutParams;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.provider.CallLog;
-import android.provider.CallLog.Calls;
-
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.UriMatcher;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.net.Uri;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabase.CursorFactory;
-import android.database.sqlite.SQLiteOpenHelper;
-import android.database.sqlite.SQLiteQueryBuilder;
-import android.graphics.Rect;
+import android.net.Uri;
+import android.os.Bundle;
+import android.text.format.DateFormat;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AbsListView;
+import android.widget.BaseAdapter;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.AbsListView.OnScrollListener;
 
-public class PhonedroidActivity extends Activity//ListActivity 
+public class PhonedroidActivity extends  ListActivity implements ListView.OnScrollListener //Activity//ListActivity 
 {
 	/* непонятно,почему нельзя желать #DEFINE и так накладно обращаться к ресурсам через ColorDark)
 	сделаем переменные :( и инициализируем их из конструктора взяв из ресурсов? Сразу?*/
@@ -110,22 +87,90 @@ public class PhonedroidActivity extends Activity//ListActivity
         												" ORDER BY fdate DESC";
 	public static final String query_nogroup="SELECT * FROM ActLog ORDER BY fdate DESC";
 
-		 
+	
+	private static boolean mBusy = false;
+
+	public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount,
+            int totalItemCount) {
+    }
+    
+
+    public void onScrollStateChanged(AbsListView view, int scrollState) {
+        switch (scrollState) {
+        case OnScrollListener.SCROLL_STATE_IDLE:
+            mBusy = false;
+            
+            int first = view.getFirstVisiblePosition();
+            int count = view.getChildCount();
+            
+            ViewHolder holder=null;
+
+            for (int i=0; i<count; i++) 
+            {
+				holder = (ViewHolder) view.getChildAt(i).getTag();            	
+                if (holder!=null && holder.fName.getTag() != null) 
+                {
+					m_CallCursor.moveToPosition(first + i);
+					final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
+					String contactName=null;
+					final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
+	        		if(tmp!=null)
+	        		{
+	        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
+		        		if(contactName==null)
+		        			contactName=tmp.m_ContactName;
+		        	}
+					
+					if(contactName==null)
+        			{
+        				holder.fName.setText(contactNumber);
+        				holder.fNumber.setVisibility(View.INVISIBLE  );
+        			}
+		        	else
+		        	{
+		        		holder.fName.setText(contactName);
+		        		holder.fNumber.setVisibility(View.VISIBLE  );
+		        		holder.fNumber.setText(contactNumber);
+		        	}
+		        		
+      		
+		        	holder.fName.setTag(null);
+	        	}//if (holder.fName.getTag() != null)
+        	}//for (int i=0; i<count; i++)
+
+            
+            
+            //mStatus.setText("Idle");
+            break;
+        case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL:
+            mBusy = true;
+            //mStatus.setText("Touch scroll");
+            break;
+        case OnScrollListener.SCROLL_STATE_FLING:
+            mBusy = true;
+            //mStatus.setText("Fling");
+            break;
+        }
+    }
+	
+	
 //---------------------------------------------------------------------------------------	
 	/** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
     	super.onCreate(savedInstanceState);
+        /*
         setContentView(R.layout.main);
-        
         final ListView lst = (ListView ) findViewById(R.id.listView1);
         lst.setAdapter( new MyListAdapter(this) );
+        */
      
-        //setListAdapter(new MyListAdapter(this));
+        setListAdapter(new MyListAdapter(this));
+        getListView().setOnScrollListener(this);
         
-        myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
      
+        getListView().setOnScrollListener(this);
         /*
            final ImageButton btn1 = (ImageButton) findViewById(R.id.imageButton1);
         btn1.setOnClickListener	(
@@ -147,7 +192,7 @@ public class PhonedroidActivity extends Activity//ListActivity
     	 	startActivity(i);
     	 */	
          
-        
+        myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
     }
 //---------------------------------------------------------------------------------------
     @Override
@@ -196,7 +241,20 @@ public class PhonedroidActivity extends Activity//ListActivity
     }    
 
 
-
+    public static class ViewHolder  
+    {
+       TextView fName;
+       TextView fNumber;
+       TextView fDuration;
+       TextView fDateTime;
+       ImageView fImg;
+       TextView fMsgData;
+       ImageButton	btnReply;
+       
+       private Object mTag;
+       final Object getTag(){return mTag;} 
+       final void setTag(Object tag){mTag=tag;}
+    }
 //---------------------------------------------------------------------------------------
     static private class MyListAdapter extends BaseAdapter 
     {
@@ -204,21 +262,13 @@ public class PhonedroidActivity extends Activity//ListActivity
     	private LayoutInflater 	mInflater;
     	
     	//---------------------------------------------------------------------------------------
-        static class ViewHolder  
-        {
-           TextView fName;
-           TextView fNumber;
-           TextView fDuration;
-           TextView fDateTime;
-           ImageView fImg;
-           TextView fMsgData;
-           ImageButton	btnReply;
-        }
+
     	
     	public MyListAdapter(Context context) 
     	{
             mContext = context;
-            mInflater = LayoutInflater.from(context);
+            //mInflater = LayoutInflater.from(context);
+            mInflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         }
 
         public int getCount() 
@@ -292,22 +342,46 @@ public class PhonedroidActivity extends Activity//ListActivity
         		else
         			convertView.setBackgroundColor(ColorBlack);
 
-        		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-        		final String contactName=ActLogTableHelper.FindContact(0, contactNumber , mContext);
         		final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
-        		//String contactName = m_CallCursor.getString(ActLogTableHelper._fname);
+        		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
 
-        		if(contactName==null)
-        		{
-        			holder.fName.setText(contactNumber);
-        			holder.fNumber.setVisibility(View.INVISIBLE  );//holder.fNumber.setVisibility(View.GONE  );
-        		}
-        		else
-        		{
-        			holder.fName.setText(contactName);
-        			holder.fNumber.setVisibility(View.VISIBLE  );
-        			holder.fNumber.setText(contactNumber);
-        		}
+        		//String contactName = m_CallCursor.getString(ActLogTableHelper._fname);
+        		
+        		String contactName=null;
+        		 if (!mBusy)  //slow view? loading in view
+        		 {
+	        		final TempContact tmp = ActLogTableHelper.GetTempContactIDByNumber(contactNumber,mContext.getContentResolver());
+	        		if(tmp!=null)
+	        		{
+	        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,mContext.getContentResolver());
+		        		if(contactName==null)
+		        			contactName=tmp.m_ContactName;
+	        		}
+	        		
+	        		if(contactName==null)
+        			{
+        				holder.fName.setText(contactNumber);
+        				holder.fNumber.setVisibility(View.INVISIBLE  );//holder.fNumber.setVisibility(View.GONE  );
+        			}
+		        	else
+		        	{
+		        		holder.fName.setText(contactName);
+		        		holder.fNumber.setVisibility(View.VISIBLE  );
+		        		holder.fNumber.setText(contactNumber);
+		        	}
+	        		
+	        		holder.fName.setTag(null);
+        		 }
+        		 else
+        		 {
+        			 holder.fName.setTag(this);
+        			 
+        			 holder.fName.setText(contactNumber);
+        			 
+        			 holder.fNumber.setVisibility(View.VISIBLE  );
+        			 holder.fNumber.setText(contactNumber);
+        		 }
+  
         		
         		
         		holder.btnReply.setOnClickListener	(
