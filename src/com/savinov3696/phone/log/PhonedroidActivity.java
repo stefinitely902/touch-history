@@ -396,7 +396,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	   			holder.fName.setTag(this);
 					holder.fName.setText(contactNumber);
 					holder.mFlipper.setDisplayedChild(0);//if(animation_on)
-					holder.mFlipper.stopFlipping();
+					holder.mFlipper.
+					stopFlipping();
         			
         			
         			holder.fNumber.setVisibility(View.INVISIBLE  );
