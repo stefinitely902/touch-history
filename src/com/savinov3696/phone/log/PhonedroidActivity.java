@@ -54,6 +54,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.ImageButton;
@@ -102,13 +104,13 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     {
         switch (scrollState) 
         {
-        	
+        	default:
     	    case OnScrollListener.SCROLL_STATE_FLING:
     	        	mBusy = true;
             		break;
         	case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL: // может быть во время двигания пальцем загружать ?
-            		mBusy = true;
-        		    break;
+            		//mBusy = true;
+        		    //break;
 			case OnScrollListener.SCROLL_STATE_IDLE:
             		mBusy = false;
 					
@@ -123,7 +125,6 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 		{
 							m_CallCursor.moveToPosition(first + i);
 							final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-							holder.fNumber.setText(contactNumber);
 							final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
 							String contactName=null;
 					   		if(tmp!=null)
@@ -133,21 +134,16 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 				        			contactName=tmp.m_ContactName;
 				        	}
 					
-							if(contactName==null)
+							if(contactName!=null)
 		        			{
-		        				// по умолчанию стоит при перемотке 
-		        				//holder.fName.setText(contactNumber);
-		        				// по умолчанию скрыт при перемотке 
-		        				//holder.fNumber.setVisibility(View.INVISIBLE  );
-		        			}
-				        	else
-				        	{
-								//holder.mContactNameView.setText(contactName);				        	
-				        		//holder.mContactNameView.setTextColor(holder.fName.getTextColors());
-				        		//holder.mFlipper.startFlipping();
-				        		
-				        		holder.fName.setText(contactName);
-				        		
+								//if(animation_on)
+								//{
+									holder.mContactNameView.setText(contactName);				        	
+				        			holder.mFlipper.setDisplayedChild(1);
+				        		//}
+				        		//else //no animation
+				        		//	holder.fName.setText(contactName);
+	
 				        		holder.fNumber.setVisibility(View.VISIBLE  );
 				        	}
 							holder.fName.setTag(null);
@@ -365,7 +361,6 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		
         		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
         		holder.fNumber.setText(contactNumber);
-
         		//String contactName = m_CallCursor.getString(ActLogTableHelper._fname);
         		
         		String contactName=null;
@@ -382,23 +377,30 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	        		if(contactName==null)
         			{
         				holder.fName.setText(contactNumber);
+        				holder.mFlipper.setDisplayedChild(0);//if(animation_on)
+        				
         				holder.fNumber.setVisibility(View.INVISIBLE  );//holder.fNumber.setVisibility(View.GONE  );
         			}
 		        	else
 		        	{
-		        		holder.fName.setText(contactName);
+		        		holder.mContactNameView.setText(contactName);//if(animation_on)
+		        		holder.mFlipper.setDisplayedChild(1);//if(animation_on)
+		        		//holder.fName.setText(contactName);//if(animation_off)
 		        		holder.fNumber.setVisibility(View.VISIBLE  );
 		        	}
 	        		
 	        		holder.fName.setTag(null);
         		 }
-        		 else
-        		 {
-        			 holder.fName.setTag(this);
-        			 holder.fName.setText(contactNumber);
-        			 holder.fNumber.setVisibility(View.INVISIBLE  );
-        			 
-        		 }
+        		 else 
+        		{
+    	   			holder.fName.setTag(this);
+					holder.fName.setText(contactNumber);
+					holder.mFlipper.setDisplayedChild(0);//if(animation_on)
+					holder.mFlipper.stopFlipping();
+        			
+        			
+        			holder.fNumber.setVisibility(View.INVISIBLE  );
+        		}
   
         		
         		
@@ -519,6 +521,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
             				break;
                 	
                 }//switch(type)
+                holder.mContactNameView.setTextColor(holder.fName.getTextColors());
                 
         	}//if(m_CallCursor!=null )
         
