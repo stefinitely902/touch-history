@@ -60,9 +60,11 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.SlidingDrawer;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AbsListView.OnScrollListener;
+import android.widget.ViewFlipper;
 
 public class PhonedroidActivity extends  Activity//ListActivity//ListActivity 
 								implements ListView.OnScrollListener 
@@ -96,61 +98,63 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     }
     
 
-    public void onScrollStateChanged(AbsListView view, int scrollState) {
-        switch (scrollState) {
-        case OnScrollListener.SCROLL_STATE_IDLE:
-            mBusy = false;
-            
-            int first = view.getFirstVisiblePosition();
-            int count = view.getChildCount();
-            
-            ViewHolder holder=null;
-
-            for (int i=0; i<count; i++) 
-            {
-				holder = (ViewHolder) view.getChildAt(i).getTag();            	
-                if (holder!=null && holder.fName.getTag() != null) 
-                {
-					m_CallCursor.moveToPosition(first + i);
-					final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-					holder.fNumber.setText(contactNumber);
-					String contactName=null;
-					final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
-	        		if(tmp!=null)
-	        		{
-	        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
-		        		if(contactName==null)
-		        			contactName=tmp.m_ContactName;
-		        	}
+    public void onScrollStateChanged(AbsListView view, int scrollState) 
+    {
+        switch (scrollState) 
+        {
+        	
+    	    case OnScrollListener.SCROLL_STATE_FLING:
+    	        	mBusy = true;
+            		break;
+        	case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL: // может быть во время двигания пальцем загружать ?
+            		mBusy = true;
+        		    break;
+			case OnScrollListener.SCROLL_STATE_IDLE:
+            		mBusy = false;
 					
-					if(contactName==null)
-        			{
-        				holder.fName.setText(contactNumber);
-        				holder.fNumber.setVisibility(View.INVISIBLE  );
-        			}
-		        	else
-		        	{
-		        		holder.fName.setText(contactName);
-		        		holder.fNumber.setVisibility(View.VISIBLE  );
-		        	}
-		        		
-      		
-		        	holder.fName.setTag(null);
-	        	}//if (holder.fName.getTag() != null)
-        	}//for (int i=0; i<count; i++)
-
-            
-            
-            //mStatus.setText("Idle");
-            break;
-        case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL:
-            mBusy = true;
-            //mStatus.setText("Touch scroll");
-            break;
-        case OnScrollListener.SCROLL_STATE_FLING:
-            mBusy = true;
-            //mStatus.setText("Fling");
-            break;
+					int first = view.getFirstVisiblePosition();
+					int count = view.getChildCount();
+					//ViewHolder holder=null;
+					
+	            	for (int i=0; i<count; i++) 
+            		{
+						final ViewHolder holder = (ViewHolder) view.getChildAt(i).getTag();            	
+                		if (holder!=null && holder.fName.getTag() != null ) 
+                		{
+							m_CallCursor.moveToPosition(first + i);
+							final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
+							holder.fNumber.setText(contactNumber);
+							final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
+							String contactName=null;
+					   		if(tmp!=null)
+	        				{
+			        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
+				        		if(contactName==null)
+				        			contactName=tmp.m_ContactName;
+				        	}
+					
+							if(contactName==null)
+		        			{
+		        				// по умолчанию стоит при перемотке 
+		        				//holder.fName.setText(contactNumber);
+		        				// по умолчанию скрыт при перемотке 
+		        				//holder.fNumber.setVisibility(View.INVISIBLE  );
+		        			}
+				        	else
+				        	{
+								//holder.mContactNameView.setText(contactName);				        	
+				        		//holder.mContactNameView.setTextColor(holder.fName.getTextColors());
+				        		//holder.mFlipper.startFlipping();
+				        		
+				        		holder.fName.setText(contactName);
+				        		
+				        		holder.fNumber.setVisibility(View.VISIBLE  );
+				        	}
+							holder.fName.setTag(null);
+	        			}//if (holder.fName.getTag() != null)
+        			}//for (int i=0; i<count; i++)
+            break;//case OnScrollListener.SCROLL_STATE_IDLE:
+        
         }
     }
 	
@@ -278,6 +282,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
        ImageButton	btnReply;
        
        int m_Pos;
+       ViewFlipper mFlipper;
+       TextView mContactNameView;
        
        
        //private Object mTag;
@@ -332,6 +338,9 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		holder.fMsgData=(TextView) convertView.findViewById(R.id.al_Data);
         		holder.fImg = (ImageView) convertView.findViewById(R.id.al_Img);
         		holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply);
+        		
+        		holder.mFlipper = (ViewFlipper) convertView.findViewById(R.id.viewFlipper1);
+        		holder.mContactNameView=(TextView) convertView.findViewById(R.id.ContactNameView);
         		 
         		convertView.setTag(holder);
         	}
