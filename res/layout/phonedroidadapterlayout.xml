@@ -12,7 +12,7 @@
         <LinearLayout android:orientation="vertical" android:id="@+id/linearLayout2" android:layout_height="wrap_content" android:layout_width="match_parent" android:layout_weight="1" android:focusable="false">
             <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:id="@+id/al_Text" android:layout_width="fill_parent" android:text="@string/strContactName" android:singleLine="true" android:textStyle="bold" android:focusable="false" android:paddingLeft="5sp"></TextView>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/linearLayout3" android:focusable="false">
-                <TextView android:text="@string/strNumber" android:textAppearance="?android:attr/textAppearanceSmall" android:id="@+id/al_Number" android:layout_height="wrap_content" android:singleLine="true" android:layout_weight="1" android:layout_width="match_parent" android:focusable="false"></TextView>
+                <TextView android:text="@string/strNumber" android:textAppearance="?android:attr/textAppearanceSmall" android:id="@+id/al_Number" android:layout_height="wrap_content" android:singleLine="true" android:layout_weight="1" android:layout_width="match_parent" android:focusable="false" android:paddingLeft="5sp"></TextView>
                 <TextView android:text="@string/strDateTime" android:textAppearance="?android:attr/textAppearanceSmall" android:singleLine="true" android:id="@+id/al_DateTime" android:layout_height="wrap_content" android:layout_width="wrap_content" android:layout_gravity="top|right" android:textStyle="bold" android:focusable="false" android:layout_weight="0"></TextView>
             </LinearLayout>
         </LinearLayout>

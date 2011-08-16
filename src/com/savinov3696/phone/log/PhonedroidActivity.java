@@ -39,11 +39,9 @@ fdate DESC,  "order" DESC
 //---------------------------------------------------------------------------------------
  
 */
-
-import java.util.Observer;
-
 import com.savinov3696.phone.log.ActLogTableHelper.TempContact;
 
+import android.app.Activity;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.Intent;
@@ -60,12 +58,15 @@ import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AbsListView.OnScrollListener;
 
-public class PhonedroidActivity extends  ListActivity implements ListView.OnScrollListener //Activity//ListActivity 
+public class PhonedroidActivity extends  Activity//ListActivity//ListActivity 
+								implements ListView.OnScrollListener 
+																	 
 {
 	/* непонятно,почему нельзя желать #DEFINE и так накладно обращаться к ресурсам через ColorDark)
 	сделаем переменные :( и инициализируем их из конструктора взяв из ресурсов? Сразу?*/
@@ -79,7 +80,7 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
 
 	
 	private static ActLogTableHelper 	myHelper;
-	private static Cursor 				m_CallCursor;
+	private static Cursor				m_CallCursor;
 	
 	public static final String query_group_by_account= "SELECT  *  FROM ActLog s  WHERE _ID = "+
         												"(SELECT _ID FROM ActLog si WHERE   si.faccount = s.faccount "+
@@ -112,6 +113,7 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
                 {
 					m_CallCursor.moveToPosition(first + i);
 					final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
+					holder.fNumber.setText(contactNumber);
 					String contactName=null;
 					final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
 	        		if(tmp!=null)
@@ -130,7 +132,6 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
 		        	{
 		        		holder.fName.setText(contactName);
 		        		holder.fNumber.setVisibility(View.VISIBLE  );
-		        		holder.fNumber.setText(contactNumber);
 		        	}
 		        		
       		
@@ -159,18 +160,21 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
+    	Log.d("myinfo", "start\t onCreate");
+    	long startTime = System.currentTimeMillis();
     	super.onCreate(savedInstanceState);
-        /*
+        
         setContentView(R.layout.main);
         final ListView lst = (ListView ) findViewById(R.id.listView1);
-        lst.setAdapter( new MyListAdapter(this) );
+        ListAdapter la=new MyListAdapter(this);
+        lst.setAdapter( la );
+        lst.setOnScrollListener(this);
+        /*
+     	ListAdapter la=new MyListAdapter(this);
+     	this.setListAdapter(la);
+        getListView().setOnScrollListener(this);
         */
-     
-        setListAdapter(new MyListAdapter(this));
-        getListView().setOnScrollListener(this);
         
-     
-        getListView().setOnScrollListener(this);
         /*
            final ImageButton btn1 = (ImageButton) findViewById(R.id.imageButton1);
         btn1.setOnClickListener	(
@@ -193,51 +197,73 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
     	 */	
          
         myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
+        
+        m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
+        Log.d("myinfo", "end\t onCreate");
+        
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        Toast.makeText(getApplicationContext(), "onResume time = "+elapsedTime,Toast.LENGTH_SHORT).show();
+        Log.d("RAW QUERY", "elapsedTime = "+elapsedTime);
+        
+    }
+//---------------------------------------------------------------------------------------
+    @Override
+    protected void onStart()
+    {
+    	Log.d("myinfo", "start\t onStart");
+    	super.onStart();
+    	Log.d("myinfo", "end\t onStart");
     }
 //---------------------------------------------------------------------------------------
     @Override
     protected void onResume() 
     {
+        Log.d("myinfo", "start\t onResume");
         super.onResume();
-        long startTime = System.currentTimeMillis();
-
-
         
-       m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
+
+       
         // m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_nogroup, null);
         //if (m_CallCursor != null)
         //	m_CallCursor.moveToFirst();
 
-        long elapsedTime = System.currentTimeMillis() - startTime;
-        Toast.makeText(getApplicationContext(), "onResume time = "+elapsedTime,Toast.LENGTH_SHORT).show();
-        Log.d("RAW QUERY", "elapsedTime = "+elapsedTime);
 
-        
+		Log.d("myinfo", "end\t onResume");        
     }//protected void onResume()
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onPause() 
     {
         super.onPause();
-        m_CallCursor.close();
+        Log.d("myinfo", "start\t onPause");
+        Log.d("myinfo", "end\t onPause");
     }   
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onStop() 
     {
+        Log.d("myinfo", "start\t onStop");
         super.onStop();
+
         
-        
+        //m_CallCursor.close();
         
         //finish();
+        Log.d("myinfo", "end\t onStop");
     }
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onDestroy() 
     {
+    	super.onDestroy();
+    	
+    	
+    	
+    	Log.d("myinfo", "start\t onDestroy");
     	SQLiteDatabase db = myHelper.getWritableDatabase();//  Access to database objects
     	db.close();
-    	super.onDestroy();
+    	
+    	Log.d("myinfo", "end\t onDestroy");
     }    
 
 
@@ -251,24 +277,30 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
        TextView fMsgData;
        ImageButton	btnReply;
        
-       private Object mTag;
-       final Object getTag(){return mTag;} 
-       final void setTag(Object tag){mTag=tag;}
+       int m_Pos;
+       
+       
+       //private Object mTag;
+       //final Object getTag(){return mTag;} 
+       //final void setTag(Object tag){mTag=tag;}
     }
 //---------------------------------------------------------------------------------------
-    static private class MyListAdapter extends BaseAdapter 
+    static private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener
     {
     	private Context 		mContext;
-    	private LayoutInflater 	mInflater;
+    	private LayoutInflater  mInflater;
     	
     	//---------------------------------------------------------------------------------------
 
     	
     	public MyListAdapter(Context context) 
     	{
-            mContext = context;
-            //mInflater = LayoutInflater.from(context);
-            mInflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            if(context!=null)
+            {
+            	mContext = context;
+	            //mInflater = LayoutInflater.from(context);
+            	mInflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            }
         }
 
         public int getCount() 
@@ -277,26 +309,9 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         		return m_CallCursor.getCount();
         	return 0;
         }
-/*
-        @Override
-        public boolean areAllItemsEnabled() {
-            return true;
-        }
 
-        @Override
-        public boolean isEnabled(int position) 
-        {
-        	//return !mStrings[position].startsWith("-");
-        	return true;
-        }
-*/
-        public Object getItem(int position) {
-            return position;
-        }
- 
-        public long getItemId(int position) {
-            return position;
-        }
+        public Object getItem(int position) {	return position;	}
+        public long getItemId(int position) {	return position;	}
 
         public View getView(int position, View convertView, ViewGroup parent) 
         {
@@ -307,7 +322,7 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         	
         	if ( convertView == null ) 
         	{
-        		convertView = mInflater.inflate(R.layout.phonedroidadapterlayout, null );
+        		convertView = (View)mInflater.inflate(R.layout.phonedroidadapterlayout, parent, false);
         		
         		holder = new ViewHolder();
         		holder.fName = (TextView) convertView.findViewById(R.id.al_Text);
@@ -315,22 +330,17 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         		holder.fDuration = (TextView) convertView.findViewById(R.id.al_Duration);
         		holder.fDateTime = (TextView) convertView.findViewById(R.id.al_DateTime);
         		holder.fMsgData=(TextView) convertView.findViewById(R.id.al_Data);
-
         		holder.fImg = (ImageView) convertView.findViewById(R.id.al_Img);
-        		
+        		holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply);
+        		 
         		convertView.setTag(holder);
-        		
-        		holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply); 
-
-        		
-
-
         	}
         	else
         	{
         		holder = (ViewHolder) convertView.getTag();
         	}
         	
+        	holder.m_Pos=position;
         	
         	if(m_CallCursor!=null )
         	{
@@ -343,7 +353,9 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         			convertView.setBackgroundColor(ColorBlack);
 
         		final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
+        		
         		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
+        		holder.fNumber.setText(contactNumber);
 
         		//String contactName = m_CallCursor.getString(ActLogTableHelper._fname);
         		
@@ -367,7 +379,6 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
 		        	{
 		        		holder.fName.setText(contactName);
 		        		holder.fNumber.setVisibility(View.VISIBLE  );
-		        		holder.fNumber.setText(contactNumber);
 		        	}
 	        		
 	        		holder.fName.setTag(null);
@@ -375,16 +386,16 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         		 else
         		 {
         			 holder.fName.setTag(this);
-        			 
         			 holder.fName.setText(contactNumber);
+        			 holder.fNumber.setVisibility(View.INVISIBLE  );
         			 
-        			 holder.fNumber.setVisibility(View.VISIBLE  );
-        			 holder.fNumber.setText(contactNumber);
         		 }
   
         		
         		
-        		holder.btnReply.setOnClickListener	(
+        		//holder.btnReply.setTag(holder);
+        		holder.btnReply.setOnClickListener	( this);
+        		/*
                 		new ImageButton.OnClickListener() 
                 		{
                 			public void onClick(View v)    
@@ -396,7 +407,7 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
                 					case ActLogTableHelper.GSM_CALL_MISSED:
                 					    //final boolean available = isIntentAvailable(getBaseContext(),Intent.ACTION_CALL);
                 						//if(available)
-                							mContext.startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + contactNumber)));
+                							mContext.startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + Uri.encode(contactNumber) )));
                 						break;
                 					
                 					default:
@@ -413,6 +424,7 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
                				
                 			}
                 		});
+					*/
                 		
                 					        		
 
@@ -505,6 +517,45 @@ public class PhonedroidActivity extends  ListActivity implements ListView.OnScro
         	Log.d("PAINT VIEW", "item="+position+"\ttime="+elapsedTime);
         	return convertView;
         }//public View getView(int position, View convertView, ViewGroup parent)
+
+		@Override
+		public void onClick(View view) 
+		{
+			Log.d("myinfo", "outgoing call");
+			
+			ImageButton btn = (ImageButton) view;
+			View parent= (View) btn.getParent() ; 
+			ViewHolder holder = (ViewHolder) parent.getTag();          	
+			
+			if (holder!=null) 
+			{
+				final String contactNumber=(String) holder.fNumber.getText();
+				Toast.makeText(mContext,"Reply "+holder.fName.getText()+"\n"+contactNumber,Toast.LENGTH_SHORT).show();
+				m_CallCursor.moveToPosition(holder.m_Pos);
+				final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
+				switch(type)
+                {
+                	case ActLogTableHelper.GSM_CALL_INCOMING:
+                	case ActLogTableHelper.GSM_CALL_OUTGOING:
+                	case ActLogTableHelper.GSM_CALL_MISSED:
+                    //final boolean available = isIntentAvailable(getBaseContext(),Intent.ACTION_CALL);
+                	//if(available)
+                		mContext.startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + Uri.encode(contactNumber) )));
+                	break;
+                
+					default:
+					Intent intent = new Intent(Intent.ACTION_VIEW);
+                	//sendIntent.putExtra("sms_body", "smsBody");
+                	//sendIntent.putExtra("address", "phoneNumber1;phoneNumber2;...");
+                	intent.setType("vnd.android-dir/mms-sms");
+                    Uri uri = Uri.parse("sms:"+ contactNumber);
+                    intent.setData(uri);
+                    mContext.startActivity(intent);
+                	break;
+                }//switch(type)	
+			}//if (holder!=null)
+
+		}//public void onClick(View view) 
         
 
         
