@@ -1,9 +1,13 @@
 package com.savinov3696.phone.log;
 
+import java.util.Iterator;
+
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.CursorJoiner;
+import android.database.CursorJoiner.Result;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -12,8 +16,11 @@ import android.provider.CallLog.Calls;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
+import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.PhoneLookup;
+import android.provider.ContactsContract.RawContacts;
+import android.provider.ContactsContract.RawContactsEntity;
 import android.util.Log;
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
@@ -119,12 +126,21 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     {
     	String m_ContactName;
     	long   m_ContactID;
+    	String m_Lookup;
     	
     	TempContact(String name,long id)
     	{
     		m_ContactName=name;
     		m_ContactID=id;
+    		m_Lookup=null;
     	}//TempContact
+    	
+    	TempContact(String name,long id,String lookup)
+    	{
+    		m_ContactName=name;
+    		m_ContactID=id;
+    		m_Lookup=lookup;
+    	}//TempContact    	
     }//private static final class TempContact
 //---------------------------------------------------------------------------------------    
     protected void CopyFromCallLogProvider(Context context,SQLiteDatabase db)
@@ -275,36 +291,33 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     		}//if(resolver!=null)
     	}//if( m_Context!=null)
     }//protected void CopyFromSMSLogProvider()
-    
-//---------------------------------------------------------------------------------------    
-    final static public TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
-    {
-   		if(resolver!=null)
-   		{
-   			Uri uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode(account));
-   			final String[] PROJECTION = new String[] {	PhoneLookup._ID,
-   		    										PhoneLookup.DISPLAY_NAME    };
-   		    //String SELECTION = Contacts._ID + "='"+id+"'";
-   		    Cursor cur=resolver.query(uri, PROJECTION,null,null,null);
-   		    if(cur.moveToFirst())
-   		    {
-   		    	cur.moveToFirst();
-   		    	int col_name=cur.getColumnIndex(PhoneLookup.DISPLAY_NAME);
-   		    	int col_id=cur.getColumnIndex(PhoneLookup._ID);
-   		    	
-   		    	return new TempContact(cur.getString(col_name),cur.getLong(col_id));
-    		}//if(cur.moveToFirst())
-  		}//if(resolver!=null)
-   		return null;   	
-    }//static private TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
-//---------------------------------------------------------------------------------------    
+  //---------------------------------------------------------------------------------------    
     final static public long GetContactIDByNumber(String account,ContentResolver resolver)
     {
     	final TempContact tmp=GetTempContactIDByNumber(account,resolver);
     	if(tmp!=null)
     		return tmp.m_ContactID;
    		return 0;
-    }
+    }    
+//---------------------------------------------------------------------------------------    
+    final static public TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
+    {
+   		if(resolver!=null)
+   		{
+   			Uri uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode(account));
+   			final String[] PROJECTION = new String[] {	PhoneLookup.DISPLAY_NAME	
+   														,PhoneLookup._ID
+   														,PhoneLookup.LOOKUP_KEY
+   														};
+   		    //String SELECTION = Contacts._ID + "='"+id+"'";
+   		    Cursor cur=resolver.query(uri, PROJECTION,null,null,null);
+   		    if(cur.moveToFirst())
+   		    {
+   		    	return new TempContact(cur.getString(0),cur.getLong(1),cur.getString(2));
+    		}//if(cur.moveToFirst())
+  		}//if(resolver!=null)
+   		return null;   	
+    }//static private TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
 //---------------------------------------------------------------------------------------    
     
     final static public String GetContactNameByID(long contact_id,ContentResolver resolver)
@@ -312,41 +325,94 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	if(resolver!=null)
     	{
     		final Uri uri = Data.CONTENT_URI;
-    		final String[] columns = {	/*Data._ID,*/ 
-    								//Data.CONTACT_ID, Data.LOOKUP_KEY,
-    								ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME,
-    								ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME,
-    								ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
-    								ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME   	};
+
+    		final String[] columns = {	
+    									ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME,
+    									ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
+    									ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME
+    									//,ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME
+    									/*Data._ID,*/ 
+        								//Data.CONTACT_ID, 
+        								//Data.LOOKUP_KEY
+    									};
     		final String   where=Data.CONTACT_ID + "=?" + " AND "+ Data.MIMETYPE + "='" + StructuredName.CONTENT_ITEM_TYPE + "'";
-    		final String[] where_arg = {String.valueOf(contact_id)
-    							};
+    		final String[] where_arg = {String.valueOf(contact_id)	};
     			
     		Cursor cur = resolver.query(uri,columns,where,where_arg,null);
     		if(cur.moveToFirst())
     		{
        			String result="";
-       			final String family_name=cur.getString(cur.getColumnIndex(StructuredName.FAMILY_NAME));
+       			final String family_name=cur.getString(0);
        			if(family_name!=null)
        				result+=family_name;
-       			final String given_name=cur.getString(cur.getColumnIndex(StructuredName.GIVEN_NAME));
+       			final String given_name=cur.getString(1);
        			if(given_name!=null)
        				result+=" "+given_name;
-       			final String middle_name=cur.getString(cur.getColumnIndex(StructuredName.MIDDLE_NAME));
+       			final String middle_name=cur.getString(2);
        			if(middle_name!=null)
        				result+=" "+middle_name;
        			//return String.format("%s %s %s",family_name,given_name,middle_name);
        			return result;
-		   		//String cid=cur.getString(cur.getColumnIndex(Data.CONTACT_ID));
-		   		//String lookup_name=cur.getString(cur.getColumnIndex(Data.LOOKUP_KEY));
-		   		//Log.d("myinfo", "CONTACT_ID="+cid+"\tLOOKUP_KEY="+lookup_name+"\t"+family_name+" "+given_name);
-
     		}//if(cur.moveToFirst())
     	}//if(resolver!=null)
        	return null;
     }//static public String GetContactNameByID(long id,Context context)
     
     
+
+    
+    
+    
+    final static public String GetAlternativeDisplayNameByNumber(TempContact tmp,ContentResolver resolver)
+    {
+    	/*
+    	Uri rawContactUri = RawContacts.URI.buildUpon()
+    	          .appendQueryParameter(RawContactsEntity.DATA3, accountName)
+    	          .appendQueryParameter(RawContacts.ACCOUNT_TYPE, accountType)
+    	          .build();
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	//TempContact tmp=new TempContact ("fghf",1,"dfdfdf");// content://com.android.contacts/contacts/lookup/dfdfdf/1
+    	Uri c_uri = Contacts.getLookupUri (tmp.m_ContactID,tmp.m_Lookup);
+    	
+    	Uri x_uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode("+79234018780"));
+    	
+    	final Uri uri = Data.getContactLookupUri(resolver, x_uri );
+
+    	final String   where= Contacts._ID+"=?";//Data.CONTACT_ID+"=?";
+    	final String[] where_arg = {String.valueOf(tmp.m_ContactID)};
+
+    	Cursor cur1 = resolver.query(uri,null,where,where_arg,null);
+    	String[] cols=new String[cur1.getColumnCount()];
+    	for(int i=0;i<cur1.getColumnCount();i++)
+    	{
+    		cols[i]=cur1.getColumnName(i);
+    		
+    	}
+    			
+    	
+		//Cursor cur = resolver.query(uri,null,where,where_arg,null);
+		String result="";
+		
+		int qty = cur1.getCount();
+
+		while(cur1.moveToNext())
+		{
+			final String family_name=cur1.getString(23);
+			final String d_name=cur1.getString(18);
+			qty=0;
+		}
+		*/
+		return null;
+    }
+    
+
     
 
 }// public class ActLogTableHelper

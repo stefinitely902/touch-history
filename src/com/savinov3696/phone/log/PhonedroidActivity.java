@@ -43,12 +43,14 @@ import com.savinov3696.phone.log.ActLogTableHelper.TempContact;
 
 import android.app.Activity;
 import android.app.ListActivity;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.ContactsContract.Contacts;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -99,10 +101,49 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
             int totalItemCount) {
     }
     
+	
+	public void ShowContactName(ViewHolder holder)
+	{
+		//if (holder!=null && holder.fName.getTag() != null )
+		{
+			final String contactNumber=(String)holder.fNumber.getText();//берём номер контака
+			final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());//ищем имя
+			
+			String contactName=null;
+	   		if(tmp!=null)
+			{
+    			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
+        		if(contactName==null)
+        			contactName=tmp.m_ContactName;
+        	}
+	
+			if(contactName!=null)
+			{
+        		if(holder.mFlipper.getDisplayedChild()==0)
+        		{
+        			TextView tw  = (TextView)holder.mFlipper.getChildAt(1);
+        			tw.setText(contactName);//if(animation_on)
+        			holder.mFlipper.setDisplayedChild(1);//if(animation_on)
+        		}
+        		else
+        		{
+        			TextView tw  = (TextView)holder.mFlipper.getChildAt(0);
+        			tw.setText(contactName);//if(animation_on)
+        			holder.mFlipper.setDisplayedChild(0);//if(animation_on)
+        		}
+
+        		holder.fNumber.setVisibility(View.VISIBLE  );
+        	}
+			
+		}//if (holder!=null && holder.fName.getTag() != null )
+		
+	}//ShowContactName(ViewHolder holder)
+	
 
     public void onScrollStateChanged(AbsListView view, int scrollState) 
     {
-        switch (scrollState) 
+    	
+    	switch (scrollState) 
         {
         	default:
     	    case OnScrollListener.SCROLL_STATE_FLING:
@@ -121,38 +162,22 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	            	for (int i=0; i<count; i++) 
             		{
 						final ViewHolder holder = (ViewHolder) view.getChildAt(i).getTag();            	
-                		if (holder!=null && holder.fName.getTag() != null ) 
-                		{
-							m_CallCursor.moveToPosition(first + i);
-							final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-							final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());
-							String contactName=null;
-					   		if(tmp!=null)
-	        				{
-			        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
-				        		if(contactName==null)
-				        			contactName=tmp.m_ContactName;
-				        	}
-					
-							if(contactName!=null)
-		        			{
-								//if(animation_on)
-								//{
-									holder.mContactNameView.setText(contactName);				        	
-				        			holder.mFlipper.setDisplayedChild(1);
-				        		//}
-				        		//else //no animation
-				        		//	holder.fName.setText(contactName);
-	
-				        		holder.fNumber.setVisibility(View.VISIBLE  );
-				        	}
-							holder.fName.setTag(null);
-	        			}//if (holder.fName.getTag() != null)
+               			long startTime = System.currentTimeMillis();
+               			if (holder!=null && holder.fName.getTag() != null )
+               			{
+               				ShowContactName(holder);
+               				holder.fName.setTag(null);
+               			}
+			        	long elapsedTime = System.currentTimeMillis() - startTime;
+			        	Log.d("PAINT VIEW", "SCROLL_STATE_IDLE item="+(first + i)+"\ttime="+elapsedTime);
         			}//for (int i=0; i<count; i++)
             break;//case OnScrollListener.SCROLL_STATE_IDLE:
         
         }
     }
+	
+	
+
 	
 	
 //---------------------------------------------------------------------------------------	
@@ -281,13 +306,16 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
        ViewFlipper mFlipper;
        TextView mContactNameView;
        
+       int mContactNeedRepaint;
+       
        
        //private Object mTag;
        //final Object getTag(){return mTag;} 
        //final void setTag(Object tag){mTag=tag;}
     }
 //---------------------------------------------------------------------------------------
-    static private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener
+    //static 
+    private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener
     {
     	private Context 		mContext;
     	private LayoutInflater  mInflater;
@@ -343,10 +371,10 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         	else
         	{
         		holder = (ViewHolder) convertView.getTag();
+        		holder.mFlipper.stopFlipping();
         	}
         	
         	holder.m_Pos=position;
-        	
         	if(m_CallCursor!=null )
         	{
         		
@@ -360,46 +388,19 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
         		
         		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-        		holder.fNumber.setText(contactNumber);
-        		//String contactName = m_CallCursor.getString(ActLogTableHelper._fname);
         		
-        		String contactName=null;
+        		
+        		holder.fNumber.setText(contactNumber);
+        		((TextView)holder.mFlipper.getCurrentView()).setText(contactNumber);//if(animation_on)
+        		
+        		//String contactName=null;
         		 if (!mBusy)  //slow view? loading in view
         		 {
-	        		final TempContact tmp = ActLogTableHelper.GetTempContactIDByNumber(contactNumber,mContext.getContentResolver());
-	        		if(tmp!=null)
-	        		{
-	        			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,mContext.getContentResolver());
-		        		if(contactName==null)
-		        			contactName=tmp.m_ContactName;
-	        		}
-	        		
-	        		if(contactName==null)
-        			{
-        				holder.fName.setText(contactNumber);
-        				holder.mFlipper.setDisplayedChild(0);//if(animation_on)
-        				
-        				holder.fNumber.setVisibility(View.INVISIBLE  );//holder.fNumber.setVisibility(View.GONE  );
-        			}
-		        	else
-		        	{
-		        		holder.mContactNameView.setText(contactName);//if(animation_on)
-		        		holder.mFlipper.setDisplayedChild(1);//if(animation_on)
-		        		//holder.fName.setText(contactName);//if(animation_off)
-		        		holder.fNumber.setVisibility(View.VISIBLE  );
-		        	}
-	        		
-	        		holder.fName.setTag(null);
+        			 ShowContactName(holder);
         		 }
         		 else 
         		{
     	   			holder.fName.setTag(this);
-					holder.fName.setText(contactNumber);
-					holder.mFlipper.setDisplayedChild(0);//if(animation_on)
-					holder.mFlipper.
-					stopFlipping();
-        			
-        			
         			holder.fNumber.setVisibility(View.INVISIBLE  );
         		}
   
