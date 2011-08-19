@@ -36,12 +36,18 @@
             
         </activity>
      
-        
         <receiver android:name=".CallSmsReceiver">
 			<intent-filter>
   				<action android:name="android.intent.action.PHONE_STATE" /> 
   			</intent-filter> 
-  		</receiver>    
+  		</receiver>   
+
+
+     	<activity 	android:name=".DlgReply"
+     				android:theme="@android:style/Theme.Dialog"
+     				android:label="@string/strContactName"
+     				>
+  		</activity>
  
         		
     </application>

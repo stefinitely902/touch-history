@@ -11,4 +11,6 @@
     <string name="strDateTime">01.02.11 19:59</string>
     <string name="strNumber">+7-123-456-77-85</string>
     <string name="strSampleData">sample data string sample data string http://developer.android.com data string \n end string</string>
+    <string name="SendPhoneCall">Позвонить</string>
+    <string name="SendPhoneSMS">Написать СМС</string>
 </resources>

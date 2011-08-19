@@ -1,6 +1,8 @@
 package com.savinov3696.phone.log;
 
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -124,23 +126,33 @@ public class ActLogTableHelper extends SQLiteOpenHelper
 //---------------------------------------------------------------------------------------
     public static final class TempContact
     {
-    	String m_ContactName;
-    	long   m_ContactID;
-    	String m_Lookup;
+    	String m_Name;
+    	long   m_ID;
+    	String m_NameAlt;
+    	String m_Number;
     	
     	TempContact(String name,long id)
     	{
-    		m_ContactName=name;
-    		m_ContactID=id;
-    		m_Lookup=null;
+    		m_Name=name;
+    		m_ID=id;
+    		m_NameAlt=null;
     	}//TempContact
     	
-    	TempContact(String name,long id,String lookup)
+    	TempContact(String name,long id,String name_alt,String number)
     	{
-    		m_ContactName=name;
-    		m_ContactID=id;
-    		m_Lookup=lookup;
+    		m_Name=name;
+    		m_ID=id;
+    		m_NameAlt=name_alt;
+    		m_Number=number;
     	}//TempContact    	
+    	
+    	final String TryGetAltName() 
+    	{
+			if(m_NameAlt !=null)
+				return m_NameAlt;
+			return m_Name;
+    	}
+    	
     }//private static final class TempContact
 //---------------------------------------------------------------------------------------    
     protected void CopyFromCallLogProvider(Context context,SQLiteDatabase db)
@@ -174,9 +186,9 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	        		tmp = GetTempContactIDByNumber(ContactAddress,resolver);
     	        		if(tmp!=null)
     	        		{
-    	        			values.put("fname_id", tmp.m_ContactID);
+    	        			values.put("fname_id", tmp.m_ID);
     	        			
-    	        			strFIO = GetContactNameByID(tmp.m_ContactID,resolver);
+    	        			strFIO = GetContactNameByID(tmp.m_ID,resolver);
     	        			if(strFIO!=null)
     	        				values.put("fname", strFIO );
     	        			else
@@ -266,13 +278,13 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	        		TempContact tmp = GetTempContactIDByNumber(ContactAddress,resolver);
     	        		if(tmp!=null)
     	        		{
-    	        			values.put("fname_id", tmp.m_ContactID);
+    	        			values.put("fname_id", tmp.m_ID);
     	        			
-    	        			String str_fname = GetContactNameByID(tmp.m_ContactID,resolver);
+    	        			String str_fname = GetContactNameByID(tmp.m_ID,resolver);
         	        		if(str_fname!=null)
         	        			values.put("fname", str_fname );
         	        		else
-        	        			values.put("fname", tmp.m_ContactName );
+        	        			values.put("fname", tmp.m_Name );
     	        		}
     	        		
     	        		values.put("faccount", ContactAddress);
@@ -296,7 +308,7 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     {
     	final TempContact tmp=GetTempContactIDByNumber(account,resolver);
     	if(tmp!=null)
-    		return tmp.m_ContactID;
+    		return tmp.m_ID;
    		return 0;
     }    
 //---------------------------------------------------------------------------------------    
@@ -307,13 +319,19 @@ public class ActLogTableHelper extends SQLiteOpenHelper
    			Uri uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode(account));
    			final String[] PROJECTION = new String[] {	PhoneLookup.DISPLAY_NAME	
    														,PhoneLookup._ID
-   														,PhoneLookup.LOOKUP_KEY
+   														//,PhoneLookup.LOOKUP_KEY
    														};
    		    //String SELECTION = Contacts._ID + "='"+id+"'";
    		    Cursor cur=resolver.query(uri, PROJECTION,null,null,null);
+   			//Cursor cur=resolver.query(uri, null,null,null,null);
    		    if(cur.moveToFirst())
    		    {
-   		    	return new TempContact(cur.getString(0),cur.getLong(1),cur.getString(2));
+   		    	/*
+   		    	String[] values=new String [cur.getColumnCount()];
+   		    	for(int k=0;k<cur.getColumnCount();++k)
+   		    		values[k]=cur.getColumnName(k)+" =  "+cur.getString(k);
+   		    	*/
+   		    	return new TempContact(cur.getString(0),cur.getLong(1));
     		}//if(cur.moveToFirst())
   		}//if(resolver!=null)
    		return null;   	
@@ -358,62 +376,57 @@ public class ActLogTableHelper extends SQLiteOpenHelper
        	return null;
     }//static public String GetContactNameByID(long id,Context context)
     
-    
-
-    
-    
-    
-    final static public String GetAlternativeDisplayNameByNumber(TempContact tmp,ContentResolver resolver)
+  //---------------------------------------------------------------------------------------    
+    final static public TempContact[] GetTempContactNames(String[] account,ContentResolver resolver)
     {
-    	/*
-    	Uri rawContactUri = RawContacts.URI.buildUpon()
-    	          .appendQueryParameter(RawContactsEntity.DATA3, accountName)
-    	          .appendQueryParameter(RawContacts.ACCOUNT_TYPE, accountType)
-    	          .build();
+    	final long startTime = System.currentTimeMillis();
     	
-    	
-    	
-    	
-    	
-    	
-    	
-    	
-    	//TempContact tmp=new TempContact ("fghf",1,"dfdfdf");// content://com.android.contacts/contacts/lookup/dfdfdf/1
-    	Uri c_uri = Contacts.getLookupUri (tmp.m_ContactID,tmp.m_Lookup);
-    	
-    	Uri x_uri = Uri.withAppendedPath(PhoneLookup.CONTENT_FILTER_URI, Uri.encode("+79234018780"));
-    	
-    	final Uri uri = Data.getContactLookupUri(resolver, x_uri );
+    	if(account.length>0 && resolver!=null)
+   		{
+   			Uri id_uri = Data.CONTENT_URI;
+   			
+   			final String[] columns = new String[]{ 	Data.CONTACT_ID
+   													,Phone.NUMBER
+   													,ContactsContract.Contacts.DISPLAY_NAME
+   													,"display_name_alt" };// {	Phone.CONTACT_ID };
+   			
+   			String   where=Data.MIMETYPE + "='" + Phone.CONTENT_ITEM_TYPE + "' AND (";
+   			final String[] where_arg=new String[account.length];
+   			for(int i=0;i<account.length;++i)
+    		{
+   				where+=Phone.NUMBER+ "=?";
+   				if(i<(account.length-1))
+   					where+=" OR ";
+   				where_arg[i]=String.valueOf(account[i]);
+    		}
+   			where+=" )";
+   			
+   			
+    		Cursor cur = resolver.query(id_uri,columns,where,where_arg,null);
+    		TempContact[] tmp=new TempContact[cur.getCount()];
+   		    int i=0;
 
-    	final String   where= Contacts._ID+"=?";//Data.CONTACT_ID+"=?";
-    	final String[] where_arg = {String.valueOf(tmp.m_ContactID)};
+   		    while(cur.moveToNext())
+   		    {
+   		    	/*
+   		    	String[] values=new String [cur.getColumnCount()];
+   		    	for(int k=0;k<cur.getColumnCount();++k)
+   		    		values[k]=cur.getColumnName(k)+" =  "+cur.getString(k);
+   		    	*/
+   		    	tmp[i++]= new TempContact(cur.getString(2),cur.getLong(0),cur.getString(3),cur.getString(1) );
+    		}//if(cur.moveToNext())
+   		    
+        	
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            Log.d("PAINT VIEW", "QUERY CONTACT NumCount=" + account.length+"\tContCount="+tmp.length+"\ttime="+elapsedTime);
+            
+   		    return tmp;
+   		    
+  		}//if(resolver!=null)
+   		return null;   	
+    }//static private TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
+//---------------------------------------------------------------------------------------       
 
-    	Cursor cur1 = resolver.query(uri,null,where,where_arg,null);
-    	String[] cols=new String[cur1.getColumnCount()];
-    	for(int i=0;i<cur1.getColumnCount();i++)
-    	{
-    		cols[i]=cur1.getColumnName(i);
-    		
-    	}
-    			
-    	
-		//Cursor cur = resolver.query(uri,null,where,where_arg,null);
-		String result="";
-		
-		int qty = cur1.getCount();
-
-		while(cur1.moveToNext())
-		{
-			final String family_name=cur1.getString(23);
-			final String d_name=cur1.getString(18);
-			qty=0;
-		}
-		*/
-		return null;
-    }
-    
-
-    
 
 }// public class ActLogTableHelper
 //---------------------------------------------------------------------------------------

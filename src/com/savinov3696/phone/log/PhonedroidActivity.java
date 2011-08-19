@@ -39,15 +39,24 @@ fdate DESC,  "order" DESC
 //---------------------------------------------------------------------------------------
  
 */
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
 import com.savinov3696.phone.log.ActLogTableHelper.TempContact;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.ListActivity;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract.Contacts;
@@ -102,42 +111,17 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     }
     
 	
-	public void ShowContactName(ViewHolder holder)
+	public void ShowContactName(ViewHolder holder,String name)
 	{
-		//if (holder!=null && holder.fName.getTag() != null )
-		{
-			final String contactNumber=(String)holder.fNumber.getText();//берём номер контака
-			final TempContact tmp= ActLogTableHelper.GetTempContactIDByNumber(contactNumber,getContentResolver());//ищем имя
-			
-			String contactName=null;
-	   		if(tmp!=null)
-			{
-    			contactName = ActLogTableHelper.GetContactNameByID(tmp.m_ContactID,getContentResolver());
-        		if(contactName==null)
-        			contactName=tmp.m_ContactName;
-        	}
-	
-			if(contactName!=null)
-			{
-        		if(holder.mFlipper.getDisplayedChild()==0)
-        		{
-        			TextView tw  = (TextView)holder.mFlipper.getChildAt(1);
-        			tw.setText(contactName);//if(animation_on)
-        			holder.mFlipper.setDisplayedChild(1);//if(animation_on)
-        		}
-        		else
-        		{
-        			TextView tw  = (TextView)holder.mFlipper.getChildAt(0);
-        			tw.setText(contactName);//if(animation_on)
-        			holder.mFlipper.setDisplayedChild(0);//if(animation_on)
-        		}
-
-        		holder.fNumber.setVisibility(View.VISIBLE  );
-        	}
-			
-		}//if (holder!=null && holder.fName.getTag() != null )
+		TextView oldview = ((TextView)holder.mFlipper.getCurrentView());
 		
-	}//ShowContactName(ViewHolder holder)
+		holder.mFlipper.showNext();//if(animation_on)
+		((TextView)holder.mFlipper.getCurrentView()).setText(name);
+		((TextView)holder.mFlipper.getCurrentView()).setTextColor(oldview.getTextColors());
+		
+		holder.fNumber.setAnimation(holder.mFlipper.getInAnimation() );
+		holder.fNumber.setVisibility(View.VISIBLE);
+	}
 	
 
     public void onScrollStateChanged(AbsListView view, int scrollState) 
@@ -150,27 +134,46 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	        	mBusy = true;
             		break;
         	case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL: // может быть во время двигания пальцем загружать ?
-            		//mBusy = true;
+        			Log.d("PAINT VIEW","SCROLL_STATE_TOUCH_SCROLL");
+        			//	mBusy = true;
         		    //break;
 			case OnScrollListener.SCROLL_STATE_IDLE:
+					Log.d("PAINT VIEW", "SCROLL_STATE_IDLE");
             		mBusy = false;
 					
-					int first = view.getFirstVisiblePosition();
-					int count = view.getChildCount();
-					//ViewHolder holder=null;
+					//int first = view.getFirstVisiblePosition();
+					final int count = view.getChildCount();
 					
-	            	for (int i=0; i<count; i++) 
-            		{
-						final ViewHolder holder = (ViewHolder) view.getChildAt(i).getTag();            	
-               			long startTime = System.currentTimeMillis();
-               			if (holder!=null && holder.fName.getTag() != null )
-               			{
-               				ShowContactName(holder);
-               				holder.fName.setTag(null);
-               			}
-			        	long elapsedTime = System.currentTimeMillis() - startTime;
-			        	Log.d("PAINT VIEW", "SCROLL_STATE_IDLE item="+(first + i)+"\ttime="+elapsedTime);
-        			}//for (int i=0; i<count; i++)
+					//создадим справочник номер-holder элемнтов где надо поискать имена которые надо бы поискать)
+					Map<String, ViewHolder > num_name =  new HashMap<String,ViewHolder>();
+					// + создадим массив номеров по которым надо искать контакты
+	            	for (int i=0; i<count ; i++)
+	            	{
+	            		final ViewHolder holder = (ViewHolder) view.getChildAt(i).getTag();
+	            		if ( holder!=null && holder.m_State==1 )
+	            		{
+	            			final String number = (String)holder.fNumber.getText();//берём номер контака
+	            			num_name.put(number,holder);
+	            			holder.m_State=0;
+	            		}
+	            	}
+	            	
+	            	if(num_name.size()>0)
+	            	{
+	            		String[]  account = new String[num_name.size()];
+		            	num_name.keySet().toArray(account);
+		            	final TempContact[] tmp= ActLogTableHelper.GetTempContactNames(account,getContentResolver());//ищем имя	
+		            	if(tmp!=null)
+		            		for (int i=0;i<tmp.length;++i) 
+		            		{
+		            			final ViewHolder holder = num_name.get(tmp[i].m_Number);
+	            				ShowContactName(holder,tmp[i].TryGetAltName() );
+		            		}//for (int i=0;i<tmp.length;++i)
+	            		
+	            	}//if(num_name.size()>0)
+	            	
+
+
             break;//case OnScrollListener.SCROLL_STATE_IDLE:
         
         }
@@ -226,8 +229,9 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
         Log.d("myinfo", "end\t onCreate");
         
+     
+        
         long elapsedTime = System.currentTimeMillis() - startTime;
-        Toast.makeText(getApplicationContext(), "onResume time = "+elapsedTime,Toast.LENGTH_SHORT).show();
         Log.d("RAW QUERY", "elapsedTime = "+elapsedTime);
         
     }
@@ -294,7 +298,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 
     public static class ViewHolder  
     {
-       TextView fName;
+       
        TextView fNumber;
        TextView fDuration;
        TextView fDateTime;
@@ -302,20 +306,25 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
        TextView fMsgData;
        ImageButton	btnReply;
        
-       int m_Pos;
        ViewFlipper mFlipper;
-       TextView mContactNameView;
        
-       int mContactNeedRepaint;
+      // TextView mContactNameView;
+      // TextView fName;
+       int m_Pos=-1;
+       int m_State=0;// 0 not need update
+       int m_Type=0;// 0 not need update
+       
+       final TextView getNameView()
+       {
+    	   return ((TextView)mFlipper.getCurrentView());
+       }
        
        
-       //private Object mTag;
-       //final Object getTag(){return mTag;} 
-       //final void setTag(Object tag){mTag=tag;}
+
     }
 //---------------------------------------------------------------------------------------
     //static 
-    private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener
+    private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener , ImageButton.OnLongClickListener 
     {
     	private Context 		mContext;
     	private LayoutInflater  mInflater;
@@ -325,7 +334,9 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	
     	public MyListAdapter(Context context) 
     	{
-            if(context!=null)
+    		
+    		
+    		if(context!=null)
             {
             	mContext = context;
 	            //mInflater = LayoutInflater.from(context);
@@ -345,17 +356,14 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 
         public View getView(int position, View convertView, ViewGroup parent) 
         {
-        	long startTime = System.currentTimeMillis();
-        	
         	ViewHolder holder=null;
-        	
         	
         	if ( convertView == null ) 
         	{
         		convertView = (View)mInflater.inflate(R.layout.phonedroidadapterlayout, parent, false);
         		
         		holder = new ViewHolder();
-        		holder.fName = (TextView) convertView.findViewById(R.id.al_Text);
+        		
         		holder.fNumber = (TextView) convertView.findViewById(R.id.al_Number);
         		holder.fDuration = (TextView) convertView.findViewById(R.id.al_Duration);
         		holder.fDateTime = (TextView) convertView.findViewById(R.id.al_DateTime);
@@ -364,93 +372,44 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply);
         		
         		holder.mFlipper = (ViewFlipper) convertView.findViewById(R.id.viewFlipper1);
-        		holder.mContactNameView=(TextView) convertView.findViewById(R.id.ContactNameView);
-        		 
+        		
+        		//holder.mContactNameView=(TextView) convertView.findViewById(R.id.ContactNameView);
+        		//holder.fName = (TextView) convertView.findViewById(R.id.al_Text);
+        		
+        		holder.m_Pos=position;
+        		holder.btnReply.setOnClickListener(this);
+        		holder.btnReply.setOnLongClickListener(this);
         		convertView.setTag(holder);
         	}
         	else
         	{
         		holder = (ViewHolder) convertView.getTag();
-        		holder.mFlipper.stopFlipping();
         	}
-        	
-        	holder.m_Pos=position;
-        	if(m_CallCursor!=null )
+
+    		if(position%2!=0)
+    			convertView.setBackgroundColor(ColorDark);
+    		else
+    			convertView.setBackgroundColor(ColorBlack);
+
+    		
+        	if(m_CallCursor.moveToPosition(position) )
         	{
-        		
-        		m_CallCursor.moveToPosition(position);
-        		
-        		if(position%2!=0)
-        			convertView.setBackgroundColor(ColorDark);
-        		else
-        			convertView.setBackgroundColor(ColorBlack);
-
-        		final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
-        		
-        		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
-        		
-        		
-        		holder.fNumber.setText(contactNumber);
-        		((TextView)holder.mFlipper.getCurrentView()).setText(contactNumber);//if(animation_on)
-        		
-        		//String contactName=null;
-        		 if (!mBusy)  //slow view? loading in view
-        		 {
-        			 ShowContactName(holder);
-        		 }
-        		 else 
-        		{
-    	   			holder.fName.setTag(this);
-        			holder.fNumber.setVisibility(View.INVISIBLE  );
-        		}
-  
-        		
-        		
-        		//holder.btnReply.setTag(holder);
-        		holder.btnReply.setOnClickListener	( this);
-        		/*
-                		new ImageButton.OnClickListener() 
-                		{
-                			public void onClick(View v)    
-                			{      
-                				switch(type)
-                				{
-                					case ActLogTableHelper.GSM_CALL_INCOMING:
-                					case ActLogTableHelper.GSM_CALL_OUTGOING:
-                					case ActLogTableHelper.GSM_CALL_MISSED:
-                					    //final boolean available = isIntentAvailable(getBaseContext(),Intent.ACTION_CALL);
-                						//if(available)
-                							mContext.startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + Uri.encode(contactNumber) )));
-                						break;
-                					
-                					default:
-                						Intent intent = new Intent(Intent.ACTION_VIEW);
-                						//sendIntent.putExtra("sms_body", "smsBody");
-                						//sendIntent.putExtra("address", "phoneNumber1;phoneNumber2;...");
-                						intent.setType("vnd.android-dir/mms-sms");
-                        				Uri uri = Uri.parse("sms:"+ contactNumber);
-                        				intent.setData(uri);
-                        				mContext.startActivity(intent);
-                						break;
-                				
-                				}
-               				
-                			}
-                		});
-					*/
-                		
-                					        		
-
-        		//String callDate = (String) DateFormat.format("kk:mm\ndd.MM.yy", m_CallCursor.getLong(ActLogTableHelper._fdate) );
         		String callDate = (String) DateFormat.format("dd MMM.kk:mm", m_CallCursor.getLong(ActLogTableHelper._fdate) );
         		holder.fDateTime.setText(callDate);
         		
-        		Long dur =m_CallCursor.getLong(ActLogTableHelper._fdata);
-        		String dur_str=String.format("%02d:%02d\t", dur/60,dur%60);
-	
+        		final String contactNumber= m_CallCursor.getString(ActLogTableHelper._faccount);
+        		
+        		holder.fNumber.setVisibility(View.INVISIBLE);
+        		holder.fNumber.setAnimation(null);
+        		holder.fNumber.setText(contactNumber);
+        		
+        		Log.d("PAINT VIEW", "SET NUM "+contactNumber);
+        		final TextView name_view = ((TextView)holder.mFlipper.getCurrentView());
+        		name_view.setText(contactNumber);//if(animation_on)
 
-                
-                switch(type)
+  
+        		holder.m_Type=m_CallCursor.getInt(ActLogTableHelper._ftype);
+                switch(holder.m_Type)
                 {
                 	default: break;
                 	// incoming
@@ -459,31 +418,35 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 			holder.fDuration.setVisibility(View.VISIBLE );
 
                 			holder.fImg.setImageResource(R.drawable.incoming);
-                			holder.fName.setTextColor(ColorIncoming);
+                			name_view.setTextColor(ColorIncoming);
                 			holder.fNumber.setTextColor(ColorIncoming);
                 			holder.fDuration.setTextColor(ColorIncoming);
-                			
-                			holder.fDuration.setText( dur_str );
+                			{
+                				final long dur =m_CallCursor.getLong(ActLogTableHelper._fdata);
+                				holder.fDuration.setText(String.format("%02d:%02d\t", dur/60,dur%60));
+                			}
                 			break;
                 	// outgoing
                 	case ActLogTableHelper.GSM_CALL_OUTGOING:
                 			holder.fMsgData.setVisibility(View.GONE );
+                			final long dur =m_CallCursor.getLong(ActLogTableHelper._fdata);
                 			if(dur==0)
                 			{
                 				//holder.fDuration.setVisibility(View.INVISIBLE);
                 				holder.fDuration.setVisibility(View.GONE);
                 				holder.fImg.setImageResource(R.drawable.outgoing0);
-                				holder.fName.setTextColor(ColorOutgoing0);
+                				name_view.setTextColor(ColorOutgoing0);
                 				holder.fNumber.setTextColor(ColorOutgoing0);
                 			}
                 			else	
                 			{
                 				holder.fDuration.setVisibility(View.VISIBLE );
                 				holder.fImg.setImageResource(R.drawable.outgoing);
-                				holder.fName.setTextColor(ColorOutgoing);
+                				name_view.setTextColor(ColorOutgoing);
                 				holder.fNumber.setTextColor(ColorOutgoing);
                 				holder.fDuration.setTextColor(ColorOutgoing);
-                				holder.fDuration.setText( dur_str );
+               					holder.fDuration.setText(String.format("%02d:%02d\t", dur/60,dur%60));
+
                 			}
                 			break;
                 	// missed
@@ -493,7 +456,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 			holder.fDuration.setVisibility(View.GONE);
                 			
                 			holder.fImg.setImageResource(R.drawable.missed);
-                			holder.fName.setTextColor(ColorMissed);
+                			name_view.setTextColor(ColorMissed);
                 			holder.fNumber.setTextColor(ColorMissed);
                 			break;
                 	// incoming SMS
@@ -501,7 +464,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 			holder.fMsgData.setVisibility(View.VISIBLE  );
                 			holder.fDuration.setVisibility(View.GONE);
            				
-                			holder.fName.setTextColor(ColorIncoming);
+                			name_view.setTextColor(ColorIncoming);
                 			holder.fNumber.setTextColor(ColorIncoming);
                 			
                 			holder.fImg.setImageResource(R.drawable.incomingsms);
@@ -511,28 +474,42 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 	// outgoing SMS		
                 	case ActLogTableHelper.MESSAGE_TYPE_OUTBOX:
                 	case ActLogTableHelper.MESSAGE_TYPE_QUEUED:
-                			holder.fName.setTextColor(ColorOutgoing0);
+                			name_view.setTextColor(ColorOutgoing0);
                 			holder.fNumber.setTextColor(ColorOutgoing0);
                 	case ActLogTableHelper.MESSAGE_TYPE_SENT:
             				holder.fMsgData.setVisibility(View.VISIBLE  );
             				holder.fDuration.setVisibility(View.GONE);
-                			holder.fName.setTextColor(ColorOutgoing);
+            				name_view.setTextColor(ColorOutgoing);
                 			holder.fNumber.setTextColor(ColorOutgoing);
             				holder.fImg.setImageResource(R.drawable.outgoingsms);
             				holder.fMsgData.setText(m_CallCursor.getString(ActLogTableHelper._fdata));
             				break;
                 	
                 }//switch(type)
-                holder.mContactNameView.setTextColor(holder.fName.getTextColors());
                 
+        		if (!mBusy) 
+        		{
+        			
+        			Log.d("PAINT VIEW", "SCROLL_STATE_LIST"); 
+        			holder.m_State=0;
+        			final TempContact[] tmp=ActLogTableHelper.GetTempContactNames(new String[]{contactNumber},getContentResolver());
+        			if(tmp!=null && tmp.length>0)
+        				ShowContactName(holder,tmp[0].TryGetAltName());
+        		}
+        		else 
+        		{
+        			holder.m_State=1;
+        		}
+
+                
+                
+
         	}//if(m_CallCursor!=null )
-        
-        	long elapsedTime = System.currentTimeMillis() - startTime;
-        	Log.d("PAINT VIEW", "item="+position+"\ttime="+elapsedTime);
         	return convertView;
         }//public View getView(int position, View convertView, ViewGroup parent)
 
-		@Override
+//---------------------------------------------------------------------------------------        
+        @Override
 		public void onClick(View view) 
 		{
 			Log.d("myinfo", "outgoing call");
@@ -544,7 +521,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 			if (holder!=null) 
 			{
 				final String contactNumber=(String) holder.fNumber.getText();
-				Toast.makeText(mContext,"Reply "+holder.fName.getText()+"\n"+contactNumber,Toast.LENGTH_SHORT).show();
+				
 				m_CallCursor.moveToPosition(holder.m_Pos);
 				final int type=m_CallCursor.getInt(ActLogTableHelper._ftype);
 				switch(type)
@@ -570,19 +547,85 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 			}//if (holder!=null)
 
 		}//public void onClick(View view) 
-        
-
+//---------------------------------------------------------------------------------------
+		@Override
+		public boolean onLongClick(View view) 
+		{
+			ImageButton btn = (ImageButton) view;
+			View parent= (View) btn.getParent() ; 
+			ViewHolder holder = (ViewHolder) parent.getTag();          	
+			if (holder!=null) 
+			{
+				final TextView name_view = holder.getNameView();
+				//Toast.makeText(mContext,"Long press "+name_view.getText(),Toast.LENGTH_SHORT).show();
+				/*Intent result = new Intent();
+			       result.setClassName("com.savinov3696.phone.log", "com.savinov3696.phone.log.About");
+			       startActivity(result);*/
+				
+				Intent i = new Intent(mContext, DlgReply.class);
+				
+			    i.putExtra("ReplyOnActType", holder.m_Type );
+			 	i.putExtra("ContactName", name_view.getText());
+			 	i.putExtra("ContactNumber", holder.fNumber.getText() );
+		    	startActivityForResult(i, 0);
+				/*
+				final CharSequence[] myitems= {"call","sms"};
+				Dialog dlg=new AlertDialog.Builder(PhonedroidActivity.this)
+	                .setTitle("title")
+	                .setItems(myitems, new DialogInterface.OnClickListener() {
+	                    public void onClick(DialogInterface dialog, int which) {
+	                        //String[] items = getResources().getStringArray(myitems);
+	                        new AlertDialog.Builder(PhonedroidActivity.this)
+	                                .setMessage("You selected: " + which + " , " + myitems[which])
+	                                .show();
+	                    }
+	                })
+	                .create();
+				dlg.show();
+				*/
+				return true;
+			}//if (holder!=null) 
+			
+			return false;
+		}//public boolean onLongClick(View view)
         
     }//private static class MyListAdapter extends BaseAdapter
  //---------------------------------------------------------------------------------------
-
-
-    
-    
-    
-    
-    
-    
+    @Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) 
+	{
+		if(data!=null && requestCode==0)
+		{
+			Bundle extras = data.getExtras();
+			if (extras != null)
+			{
+				int SelectedAction = extras.getInt("SelectedAction");
+				switch(SelectedAction)
+				{
+					default: break;
+					case DlgReply.Call:
+					{
+						final String contactNumber = extras.getString("ContactNumber");
+						startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + Uri.encode(contactNumber) )));
+						break;
+					}
+					case DlgReply.SMS:
+					{
+						final String contactNumber = extras.getString("ContactNumber");
+						Intent intent = new Intent(Intent.ACTION_VIEW);
+	                	//sendIntent.putExtra("sms_body", "smsBody");
+	                	//sendIntent.putExtra("address", "phoneNumber1;phoneNumber2;...");
+	                	intent.setType("vnd.android-dir/mms-sms");
+	                    Uri uri = Uri.parse("sms:"+ contactNumber);
+	                    intent.setData(uri);
+	                    startActivity(intent);
+					}
+						
+				
+				}//switch(SelectedAction)
+			}//if (extras != null)
+		}//if(data!=null && resultCode==0)
+	}//protected void onActivityResult(int requestCode, int resultCode, Intent data)           
     
     
     

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="vertical"
+  android:layout_width="fill_parent" android:layout_height="fill_parent">
+    <TextView android:text="@string/strNumber" android:textAppearance="?android:attr/textAppearanceSmall" android:layout_height="wrap_content" android:focusable="false" android:layout_width="fill_parent" android:paddingLeft="5sp" android:layout_alignParentTop="true" android:layout_alignParentLeft="true" android:id="@+id/dlgreply.number"></TextView>
+    <TableLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/tableLayout1" android:layout_alignParentLeft="true" android:layout_below="@+id/dlgreply.number">
+        <TableRow android:layout_height="wrap_content" android:clickable="true" android:focusable="true" android:id="@+id/tableRow1" android:layout_width="fill_parent">
+            <ImageButton android:layout_height="wrap_content" android:layout_width="match_parent" android:padding="20sp" android:focusable="false" android:background="@color/ColorTransparent" android:src="@drawable/outgoing" android:id="@+id/imageButton1"></ImageButton>
+            <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:focusable="false" android:id="@+id/textView1" android:textColor="@color/ColorOutgoing" android:text="@string/SendPhoneCall" android:layout_height="match_parent" android:layout_width="match_parent"></TextView>
+        </TableRow>
+        <TableRow android:layout_height="wrap_content" android:clickable="true" android:focusable="true" android:layout_width="fill_parent" android:id="@+id/tableRow2">
+            <ImageButton android:layout_height="wrap_content" android:layout_width="match_parent" android:padding="20sp" android:focusable="false" android:background="@color/ColorTransparent" android:src="@drawable/outgoingsms" android:id="@+id/imageButton2"></ImageButton>
+            <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:focusable="false" android:id="@+id/textView3" android:textColor="@color/ColorOutgoing" android:text="@string/SendPhoneSMS" android:layout_height="match_parent" android:layout_width="match_parent"></TextView>
+        </TableRow>
+    </TableLayout>
+    
+</RelativeLayout>
