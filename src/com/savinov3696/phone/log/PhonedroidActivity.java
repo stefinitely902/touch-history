@@ -1,5 +1,7 @@
 package com.savinov3696.phone.log;
 
+
+
 /*
 SELECT * FROM 
    (SELECT DISTINCT ON(fname)fname,*  FROM "LogCall" ORDER BY fname ASC, fdate DESC) srt
@@ -60,15 +62,22 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract.Contacts;
+import android.telephony.PhoneNumberUtils;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.widget.AbsListView;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListAdapter;
@@ -80,7 +89,7 @@ import android.widget.AbsListView.OnScrollListener;
 import android.widget.ViewFlipper;
 
 public class PhonedroidActivity extends  Activity//ListActivity//ListActivity 
-								implements ListView.OnScrollListener 
+								implements ListView.OnScrollListener
 																	 
 {
 	/* непонятно,почему нельзя желать #DEFINE и так накладно обращаться к ресурсам через ColorDark)
@@ -93,6 +102,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	public static final int ColorBlack=0xFF000000;
 	public static final int ColorTransparent=0;
 
+	private MyListAdapter m_Adapter;
+	private boolean m_ScrollToTop;
 	
 	private static ActLogTableHelper 	myHelper;
 	private static Cursor				m_CallCursor;
@@ -106,23 +117,15 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	
 	private static boolean mBusy = false;
 
+
+
+	
+	
 	public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount,
             int totalItemCount) {
     }
     
-	
-	public void ShowContactName(ViewHolder holder,String name)
-	{
-		TextView oldview = ((TextView)holder.mFlipper.getCurrentView());
-		
-		holder.mFlipper.showNext();//if(animation_on)
-		((TextView)holder.mFlipper.getCurrentView()).setText(name);
-		((TextView)holder.mFlipper.getCurrentView()).setTextColor(oldview.getTextColors());
-		
-		holder.fNumber.setAnimation(holder.mFlipper.getInAnimation() );
-		holder.fNumber.setVisibility(View.VISIBLE);
-	}
-	
+
 
     public void onScrollStateChanged(AbsListView view, int scrollState) 
     {
@@ -167,7 +170,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 		            		for (int i=0;i<tmp.length;++i) 
 		            		{
 		            			final ViewHolder holder = num_name.get(tmp[i].m_Number);
-	            				ShowContactName(holder,tmp[i].TryGetAltName() );
+		            			holder.ShowContactName(tmp[i].TryGetAltName() );
 		            		}//for (int i=0;i<tmp.length;++i)
 	            		
 	            	}//if(num_name.size()>0)
@@ -182,82 +185,59 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	
 
 	
-	
-//---------------------------------------------------------------------------------------	
-	/** Called when the activity is first created. */
-    @Override
-    public void onCreate(Bundle savedInstanceState) 
-    {
-    	Log.d("myinfo", "start\t onCreate");
-    	long startTime = System.currentTimeMillis();
-    	super.onCreate(savedInstanceState);
-        
-        setContentView(R.layout.main);
-        final ListView lst = (ListView ) findViewById(R.id.listView1);
-        ListAdapter la=new MyListAdapter(this);
-        lst.setAdapter( la );
-        lst.setOnScrollListener(this);
-        /*
-     	ListAdapter la=new MyListAdapter(this);
-     	this.setListAdapter(la);
-        getListView().setOnScrollListener(this);
-        */
-        
-        /*
-           final ImageButton btn1 = (ImageButton) findViewById(R.id.imageButton1);
-        btn1.setOnClickListener	(
-        		new ImageButton.OnClickListener() 
-        		{
-        			public void onClick(View v)    {      ShowList();        }
-        		}
-        						);
 
-       
-       Intent result = new Intent();
-       result.setClassName("Phonedroid.apk", "Phonedroid.apk.ExpandableList1");
-       startActivity(result);
+//---------------------------------------------------------------------------------------	
+    @Override public void onCreate(Bundle savedInstanceState) 
+    {
+    	setContentView(R.layout.main);
+    	// Typing here goes to the dialer
+    	
+    	setDefaultKeyMode(DEFAULT_KEYS_DIALER);
+    	final ListView lst = (ListView ) findViewById(R.id.listView1);
+    	m_Adapter=new MyListAdapter(this);
+    	lst.setAdapter( m_Adapter );
+    	lst.setItemsCanFocus(false);
+
+        lst.setOnScrollListener(this);
         
-    	 Intent i = new Intent(this, ExpandableList1.class);
-    	 String pname=i.getPackage();
-    	 String cname=i.getComponent().toString();
-    	 if(i!=null)
-    	 	startActivity(i);
-    	 */	
-         
+        lst.setOnItemClickListener(new OnItemClickListener() {
+        	@Override
+        	public void onItemClick(AdapterView<?> parent, View v, int position, long id)
+            {
+        		//v.setBackgroundColor(0xFFFF0000);
+        		Log.d("myinfo", "!!!!!!!!!!onItemClick");
+                
+            }
+        });
+    	
+        
+        final long startTime = System.currentTimeMillis(); 
         myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
-        
         m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
-        Log.d("myinfo", "end\t onCreate");
-        
-     
-        
         long elapsedTime = System.currentTimeMillis() - startTime;
         Log.d("RAW QUERY", "elapsedTime = "+elapsedTime);
         
+        super.onCreate(savedInstanceState);
+
     }
 //---------------------------------------------------------------------------------------
-    @Override
-    protected void onStart()
+    @Override protected void onStart()
     {
-    	Log.d("myinfo", "start\t onStart");
+    	m_ScrollToTop = true;
     	super.onStart();
-    	Log.d("myinfo", "end\t onStart");
+    	
     }
 //---------------------------------------------------------------------------------------
-    @Override
-    protected void onResume() 
+    @Override protected void onResume() 
     {
-        Log.d("myinfo", "start\t onResume");
-        super.onResume();
+    	if (m_Adapter != null) 
+    	{
+    		//m_Adapter.clearCache();
+    	}
         
-
-       
-        // m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_nogroup, null);
-        //if (m_CallCursor != null)
-        //	m_CallCursor.moveToFirst();
-
-
-		Log.d("myinfo", "end\t onResume");        
+    	
+    	
+    	super.onResume();
     }//protected void onResume()
 //---------------------------------------------------------------------------------------    
     @Override
@@ -304,7 +284,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
        TextView fDateTime;
        ImageView fImg;
        TextView fMsgData;
-       ImageButton	btnReply;
+       ImageView	btnReply;
        
        ViewFlipper mFlipper;
        
@@ -319,19 +299,58 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	   return ((TextView)mFlipper.getCurrentView());
        }
        
+   		public void ShowContactName(String name)
+   		{
+   			TextView oldview = getNameView();
+   			mFlipper.showNext();//if(animation_on)
+   			((TextView)mFlipper.getCurrentView()).setText(name);
+   			((TextView)mFlipper.getCurrentView()).setTextColor(oldview.getTextColors());
+   		  	
+   			fNumber.setAnimation(mFlipper.getInAnimation() );
+   			fNumber.setVisibility(View.VISIBLE);
+   		}//public void ShowContactName(String name)       
        
 
     }
 //---------------------------------------------------------------------------------------
     //static 
-    private class MyListAdapter extends BaseAdapter implements ImageButton.OnClickListener , ImageButton.OnLongClickListener 
+    private class MyListAdapter extends BaseAdapter //implements 	//OnClickListener , 
+    															//OnLongClickListener
+    															
+    															
     {
     	private Context 		mContext;
     	private LayoutInflater  mInflater;
     	
+    	final OnClickListener			m_BtnReplyClickListener=new OnClickListener()
+    																{@Override
+																		public void onClick(View view)
+    																	{
+    																		onReplyClick(view);
+    																	}
+    																};
+    	
+    	final OnLongClickListener		m_BtnReplyLongClickListener=new OnLongClickListener()
+    																{@Override
+    																	public boolean 	onLongClick(View v)
+    																	{
+    																	return onLongReplyClick(v);
+    																	}
+    																};
+    																
+	    final OnClickListener			m_ItemClickListener=new OnClickListener()
+	    													{@Override
+																public void onClick(View view)
+	    														{
+	    															Log.d("myinfo", "!!!!!!!!!!onItemClick");												
+	    														}
+	    													};
+    																
+    														
+;
+    	
     	//---------------------------------------------------------------------------------------
 
-    	
     	public MyListAdapter(Context context) 
     	{
     		
@@ -369,7 +388,9 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		holder.fDateTime = (TextView) convertView.findViewById(R.id.al_DateTime);
         		holder.fMsgData=(TextView) convertView.findViewById(R.id.al_Data);
         		holder.fImg = (ImageView) convertView.findViewById(R.id.al_Img);
-        		holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply);
+        		//holder.btnReply = (ImageButton) convertView.findViewById(R.id.btnReply);
+        		holder.btnReply = (ImageView) convertView.findViewById(R.id.btnReply);
+        		
         		
         		holder.mFlipper = (ViewFlipper) convertView.findViewById(R.id.viewFlipper1);
         		
@@ -377,20 +398,27 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		//holder.fName = (TextView) convertView.findViewById(R.id.al_Text);
         		
         		holder.m_Pos=position;
-        		holder.btnReply.setOnClickListener(this);
-        		holder.btnReply.setOnLongClickListener(this);
+        		holder.btnReply.setOnClickListener(m_BtnReplyClickListener);
+        		holder.btnReply.setOnLongClickListener(m_BtnReplyLongClickListener);
+        		
+				//holder.mFlipper.getChildAt(0).setOnClickListener(m_ItemClickListener);
+        		//holder.mFlipper.getChildAt(1).setOnClickListener(m_ItemClickListener);
+        		//holder.fNumber.setOnClickListener(m_ItemClickListener);
+        		
+        		
         		convertView.setTag(holder);
+        		
         	}
         	else
         	{
         		holder = (ViewHolder) convertView.getTag();
         	}
-
+/*
     		if(position%2!=0)
     			convertView.setBackgroundColor(ColorDark);
     		else
     			convertView.setBackgroundColor(ColorBlack);
-
+*/
     		
         	if(m_CallCursor.moveToPosition(position) )
         	{
@@ -494,7 +522,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         			holder.m_State=0;
         			final TempContact[] tmp=ActLogTableHelper.GetTempContactNames(new String[]{contactNumber},getContentResolver());
         			if(tmp!=null && tmp.length>0)
-        				ShowContactName(holder,tmp[0].TryGetAltName());
+        				holder.ShowContactName(tmp[0].TryGetAltName());
         		}
         		else 
         		{
@@ -509,14 +537,18 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         }//public View getView(int position, View convertView, ViewGroup parent)
 
 //---------------------------------------------------------------------------------------        
-        @Override
-		public void onClick(View view) 
+
+		public void onReplyClick(View view) 
 		{
-			Log.d("myinfo", "outgoing call");
+			Log.d("myinfo", "onReplyClick");
 			
-			ImageButton btn = (ImageButton) view;
-			View parent= (View) btn.getParent() ; 
-			ViewHolder holder = (ViewHolder) parent.getTag();          	
+			//View parent=(View)view.getParent();
+			//ViewHolder holder = (ViewHolder) parent.getTag();
+			ImageView btn = (ImageView) view;
+			View parent= (View) btn.getParent() ;
+			ViewHolder holder = (ViewHolder) parent.getTag();
+ 
+			          	
 			
 			if (holder!=null) 
 			{
@@ -529,8 +561,6 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 	case ActLogTableHelper.GSM_CALL_INCOMING:
                 	case ActLogTableHelper.GSM_CALL_OUTGOING:
                 	case ActLogTableHelper.GSM_CALL_MISSED:
-                    //final boolean available = isIntentAvailable(getBaseContext(),Intent.ACTION_CALL);
-                	//if(available)
                 		mContext.startActivity(new Intent(Intent.ACTION_CALL,Uri.parse("tel:" + Uri.encode(contactNumber) )));
                 	break;
                 
@@ -547,27 +577,77 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 			}//if (holder!=null)
 
 		}//public void onClick(View view) 
+        
+       
 //---------------------------------------------------------------------------------------
-		@Override
-		public boolean onLongClick(View view) 
+		
+		public boolean onLongReplyClick(View view) 
 		{
-			ImageButton btn = (ImageButton) view;
+			ImageView btn = (ImageView) view;
 			View parent= (View) btn.getParent() ; 
-			ViewHolder holder = (ViewHolder) parent.getTag();          	
+			final ViewHolder holder = (ViewHolder) parent.getTag();          	
 			if (holder!=null) 
 			{
-				final TextView name_view = holder.getNameView();
+				AlertDialog.Builder builder;
+				final AlertDialog alertDialog;
+
+				LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(LAYOUT_INFLATER_SERVICE);
+				View layout = inflater.inflate(R.layout.dlgreply,null);//(ViewGroup) findViewById(R.id.main)
+				
+				Button btnSMS = (Button) layout.findViewById(R.id.dlgreply_btnSMS);
+				
+
+				
+
+				builder = new AlertDialog.Builder(mContext);
+				builder.setView(layout);
+				alertDialog = builder.create();
+
+
+				btnSMS.setOnClickListener(new OnClickListener() {
+					
+					@Override
+					public void onClick(View v) {
+						Intent data = new Intent();
+						data.putExtra("ContactNumber", holder.fNumber.getText());
+						alertDialog.dismiss();
+						
+						
+						
+						
+					}
+				});				
+				
+				alertDialog.show();
+				
+
+				
+				
+				/*
+				final CharSequence[] items = {"Make call", "Write SMS"};
+
+				AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+				builder.setTitle("do somthing");
+				builder.setItems(items, new DialogInterface.OnClickListener() {
+				    public void onClick(DialogInterface dialog, int item) {
+				        Toast.makeText(getApplicationContext(), items[item], Toast.LENGTH_SHORT).show();
+				    }
+				});
+				AlertDialog alert = builder.create();
+				alert.show();
+				*/
+				
 				//Toast.makeText(mContext,"Long press "+name_view.getText(),Toast.LENGTH_SHORT).show();
 				/*Intent result = new Intent();
 			       result.setClassName("com.savinov3696.phone.log", "com.savinov3696.phone.log.About");
 			       startActivity(result);*/
-				
+				/*
 				Intent i = new Intent(mContext, DlgReply.class);
-				
 			    i.putExtra("ReplyOnActType", holder.m_Type );
-			 	i.putExtra("ContactName", name_view.getText());
+			 	i.putExtra("ContactName", holder.getNameView().getText());
 			 	i.putExtra("ContactNumber", holder.fNumber.getText() );
 		    	startActivityForResult(i, 0);
+		    	*/
 				/*
 				final CharSequence[] myitems= {"call","sms"};
 				Dialog dlg=new AlertDialog.Builder(PhonedroidActivity.this)
@@ -594,7 +674,9 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     @Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) 
 	{
-		if(data!=null && requestCode==0)
+    	Log.d("myinfo", "onActivityResult requestCode="+requestCode+" resultCode="+resultCode);
+    	
+    	if(data!=null && requestCode==0)
 		{
 			Bundle extras = data.getExtras();
 			if (extras != null)
@@ -626,7 +708,12 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 			}//if (extras != null)
 		}//if(data!=null && resultCode==0)
 	}//protected void onActivityResult(int requestCode, int resultCode, Intent data)           
-    
+
+
+
+
+
+
     
     
     

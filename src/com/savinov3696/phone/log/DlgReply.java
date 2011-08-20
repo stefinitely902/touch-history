@@ -23,7 +23,6 @@ public class DlgReply extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
    	{
-		super.onCreate(savedInstanceState);
       	setContentView(R.layout.dlgreply);
       	
 		final TableRow TableRow1 = (TableRow) findViewById(R.id.tableRow1);
@@ -56,7 +55,7 @@ public class DlgReply extends Activity
 			
 			if(m_ContactNumber!=null)
 			{
-				 final TextView number = (TextView) findViewById(R.id.dlgreply_number);
+				final TextView number = (TextView) findViewById(R.id.dlgreply_number);
 				 number.setText(m_ContactNumber);
 				    
 				if(m_ContactName!=null && !m_ContactName.contentEquals(m_ContactNumber) ) 
@@ -74,12 +73,19 @@ public class DlgReply extends Activity
 			
 
 			}//if(m_ContactNumber!=null)
-   		}//if (extras != null) 
+   		}//if (extras != null)
+		
+		super.onCreate(savedInstanceState);
 	}//protected void onCreate(Bundle savedInstanceState)
 //---------------------------------------------------------------------------------------	
 	public boolean MakeCall()
 	{
 		m_SelectedAction=Call;
+		      	
+		final TableRow TableRow1 = (TableRow) findViewById(R.id.tableRow1);
+		
+		TableRow1.setSelected(true);
+        
 		finish();
 		return true;
 	}
@@ -87,6 +93,10 @@ public class DlgReply extends Activity
 	public boolean MakeSMS()
 	{
 		m_SelectedAction=SMS;
+		
+		final TableRow TableRow2 = (TableRow) findViewById(R.id.tableRow2);
+		TableRow2.setSelected(true);
+		
 		finish();
 		return true;		
 	}

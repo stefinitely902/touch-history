@@ -88,8 +88,8 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     @Override 
     public void onCreate(SQLiteDatabase db) 
     {
-        db.execSQL("create table if not exists ActLog (	" +
-        				"_ID INTEGER 	PRIMARY KEY,"+			// пор€дковый номер записи
+    	 db.execSQL("create table if not exists ActLog (	" +
+    			 		"_ID INTEGER 	PRIMARY KEY,"+			// пор€дковый номер записи
         				"ftype 			INTEGER, "+				// тип действи€
         				"fseen 			BOOL, "+				// просмотрено ли
         				"faccount 		TEXT, "+ 				// номер телефона,почта,ICQ и т.д.
@@ -99,6 +99,7 @@ public class ActLogTableHelper extends SQLiteOpenHelper
         				"ftheme			TEXT,"+
         				"fdata			TEXT"+
         				 ");");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_faccount ON ActLog (faccount DESC); ");
         
         long startTime = System.currentTimeMillis();
         CopyFromCallLogProvider(m_Context,db);
@@ -119,7 +120,8 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     {
         Log.w(m_TAG, "Upgrading database from version " + oldVersion + " to "
                 + newVersion + ", which will destroy all old data and copy all from system");
-        db.execSQL("DROP TABLE IF EXISTS notes");
+        db.execSQL("DROP TABLE IF EXISTS ActLog");
+        db.execSQL("DROP INDEX IF EXISTS idx_faccount");
         onCreate(db);
         
     } 		
@@ -177,26 +179,13 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	        	ContentValues values = new ContentValues();
 
     	        	String ContactAddress=null;
-    	        	TempContact tmp=null;
-    	        	String strFIO=null;
+
+    	        	
     	        	
     	        	while(!cursor.isAfterLast() )
     	        	{
-    	        		ContactAddress=cursor.getString(_number);
-    	        		tmp = GetTempContactIDByNumber(ContactAddress,resolver);
-    	        		if(tmp!=null)
-    	        		{
-    	        			values.put("fname_id", tmp.m_ID);
-    	        			
-    	        			strFIO = GetContactNameByID(tmp.m_ID,resolver);
-    	        			if(strFIO!=null)
-    	        				values.put("fname", strFIO );
-    	        			else
-    	        				values.put("fname", cursor.getString(_name) );
-    	        			
-    	        		}
-    	        		
-    	        		values.put("faccount", ContactAddress);
+    	        		values.put("fname", cursor.getString(_name) );
+    	        		values.put("faccount", cursor.getString(_number));
     	        		
     	        		
     	        		values.put("ftype", cursor.getInt(_type));
@@ -249,45 +238,10 @@ public class ActLogTableHelper extends SQLiteOpenHelper
 
     	        	while(!cursor.isAfterLast() )
     	        	{
-    	        		/* 
-    	        		Log.d("DEBUG", "\n id="+cursor.getString(_id)+"\t _thread_id="+cursor.getString(_thread_id)+
-    	        				 		"\t _address="+cursor.getString(_address)+
-    	        				 		"\t _person="+cursor.getString(_person)+
-    	        				 		"\t _date="+cursor.getString(_date)+
-    	        				 		
-    	        				 		"\t _protocol="+cursor.getString(_protocol)+
-//    	        				 		"\n _read="+cursor.getString(_read)+
-//    	        				 		"\n _status="+cursor.getString(_status)+
-//    	        				 		"\n _type="+cursor.getString(_type)+
-    	        				 		"\t _reply_path_present="+cursor.getString(_reply_path_present)+
-
-//    	        				 		"\n _subject="+cursor.getString(_subject)+
-    	        				 		"\t _body="+cursor.getString(_body)+
-    	        				 		"\t _service_center="+cursor.getString(_service_center)
-//    	        				 		+"\n _locked="+cursor.getString(_locked)+
-//    	        				 		+"\n _seen="+cursor.getString(_seen)
-    	        				 		);
-    	        		
-    	        		*/
-    	        		
     	        		values.put("ftype", cursor.getInt(_type)+10 ); // Sms based +10
     	        		values.put("fseen", cursor.getLong(_seen));
     	        		
-    	        		String ContactAddress=cursor.getString(_address);//cursor.getLong(_person); не всегда выдаЄт правильные значени€ контакта :(
-    	        		
-    	        		TempContact tmp = GetTempContactIDByNumber(ContactAddress,resolver);
-    	        		if(tmp!=null)
-    	        		{
-    	        			values.put("fname_id", tmp.m_ID);
-    	        			
-    	        			String str_fname = GetContactNameByID(tmp.m_ID,resolver);
-        	        		if(str_fname!=null)
-        	        			values.put("fname", str_fname );
-        	        		else
-        	        			values.put("fname", tmp.m_Name );
-    	        		}
-    	        		
-    	        		values.put("faccount", ContactAddress);
+    	        		values.put("faccount", cursor.getString(_address));
     	        		
     	        		
     	        		values.put("fdate", cursor.getLong(_date));
