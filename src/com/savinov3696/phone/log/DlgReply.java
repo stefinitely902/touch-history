@@ -56,17 +56,21 @@ public class DlgReply extends Activity
 			if(m_ContactNumber!=null)
 			{
 				final TextView number = (TextView) findViewById(R.id.dlgreply_number);
+				final TextView name = (TextView) findViewById(R.id.dlgreply_name);
 				 number.setText(m_ContactNumber);
 				    
 				if(m_ContactName!=null && !m_ContactName.contentEquals(m_ContactNumber) ) 
 				{
 					setTitle(m_ContactName);
+					name.setText(m_ContactName);
 					number.setVisibility(View.VISIBLE);
 					//number.setTextColor(0xFFFF0000);
 				}
 				else
 				{
 					setTitle(m_ContactNumber);
+					name.setText(m_ContactNumber);
+					
 					number.setVisibility(View.GONE);
 					//number.setTextColor(0xFFFF00FF);
 				}

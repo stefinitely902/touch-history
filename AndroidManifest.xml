@@ -42,9 +42,11 @@
   			</intent-filter> 
   		</receiver>   
 
-
+<!-- android:style/Theme.Dialog". -->
+<!-- android:theme="@style/Theme.Black" -->
      	<activity 	android:name=".DlgReply"
-     				android:theme="@android:style/Theme.Dialog"
+     				android:theme="@style/Theme.Black"
+     				
      				android:label="@string/strContactName"
      				>
   		</activity>

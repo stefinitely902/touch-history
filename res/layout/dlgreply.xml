@@ -4,20 +4,19 @@
   android:layout_width="fill_parent" android:layout_height="wrap_content">
     <LinearLayout android:orientation="vertical" android:layout_height="wrap_content" android:id="@+id/linearLayout1" android:layout_width="fill_parent">
         <LinearLayout android:id="@+id/linearLayout2" android:layout_height="wrap_content" android:layout_width="fill_parent">
-            <ImageView android:layout_gravity="center" android:id="@+id/imageView1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/reply"></ImageView>
             <LinearLayout android:orientation="vertical" android:id="@+id/linearLayout4" android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="match_parent">
-                <TextView android:textStyle="bold" android:text="@string/strContactName" android:singleLine="true" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:id="@+id/textView5"></TextView>
-                <TextView android:text="@string/strNumber" android:layout_width="match_parent" android:textAppearance="?android:attr/textAppearanceSmall" android:layout_height="wrap_content" android:layout_weight="1" android:id="@+id/dlgreply_number"></TextView>
+                <TextView android:textStyle="bold" android:text="@string/strContactName" android:singleLine="true" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:id="@+id/dlgreply_name" android:textColor="@color/ColorOutgoing"></TextView>
+                <TextView android:layout_width="match_parent" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/strNumber" android:id="@+id/dlgreply_number" android:textAppearance="?android:attr/textAppearanceSmall" android:textColor="@color/ColorOutgoing"></TextView>
             </LinearLayout>
         </LinearLayout>
         <TableLayout android:layout_height="wrap_content" android:id="@+id/tableLayout1" android:layout_weight="1" android:layout_width="match_parent">
             <TableRow android:id="@+id/tableRow1" android:layout_height="wrap_content" android:layout_width="match_parent">
                 <ImageButton android:background="@color/ColorTransparent" android:layout_height="wrap_content" android:layout_width="match_parent" android:src="@drawable/outgoing" android:id="@+id/imageButton1" android:layout_weight="0" android:layout_gravity="center_vertical" android:padding="20sp"></ImageButton>
-                <Button android:id="@+id/button1" android:text="@string/SendPhoneCall" android:layout_gravity="center_vertical" android:layout_width="match_parent" android:layout_weight="1" android:textColor="@color/ColorOutgoing" android:layout_height="match_parent" android:textSize="20sp" android:background="@color/ColorTransparent"></Button>
+                <TextView android:id="@+id/textView1" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:layout_gravity="center_vertical" android:layout_width="match_parent" android:text="@string/SendPhoneCall" android:textColor="@color/ColorOutgoing"></TextView>
             </TableRow>
-            <TableRow android:id="@+id/tableRow2" android:layout_height="wrap_content" android:layout_width="match_parent">
+            <TableRow android:id="@+id/tableRow2" android:layout_height="wrap_content" android:layout_width="match_parent" android:descendantFocusability="beforeDescendants">
                 <ImageButton android:background="@color/ColorTransparent" android:layout_height="wrap_content" android:layout_width="match_parent" android:src="@drawable/outgoingsms" android:id="@+id/imageButton2" android:layout_weight="0" android:layout_gravity="center_vertical" android:padding="20sp"></ImageButton>
-                <Button android:layout_gravity="center_vertical" android:layout_width="match_parent" android:layout_weight="1" android:textColor="@color/ColorOutgoing" android:layout_height="match_parent" android:textSize="20sp" android:text="@string/SendPhoneSMS" android:id="@+id/dlgreply.btnSMS" android:background="@color/ColorTransparent"></Button>
+                <TextView android:id="@+id/textView2" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_height="wrap_content" android:layout_gravity="center_vertical" android:layout_width="match_parent" android:text="@string/SendPhoneSMS" android:textColor="@color/ColorOutgoing"></TextView>
             </TableRow>
         </TableLayout>
     </LinearLayout>

@@ -20,5 +20,5 @@
         </LinearLayout>
         <TextView android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/strSampleData" android:textAppearance="?android:attr/textAppearanceMedium" android:focusable="false" android:clickable="false" android:focusableInTouchMode="false" android:id="@+id/al_Data"></TextView>
     </LinearLayout>
-    <ImageView android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/reply" android:layout_below="@+id/lytMain" android:layout_alignParentRight="true" android:layout_alignParentTop="true" android:layout_alignBottom="@+id/lytMain" android:id="@+id/btnReply"></ImageView>    
+    <ImageView android:layout_width="wrap_content" android:src="@drawable/reply" android:id="@+id/btnReply" android:layout_alignParentTop="true" android:layout_alignParentRight="true" android:layout_height="wrap_content" android:paddingRight="5sp" android:paddingTop="5sp"></ImageView>    
 </RelativeLayout>

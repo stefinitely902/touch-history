@@ -397,7 +397,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		//holder.mContactNameView=(TextView) convertView.findViewById(R.id.ContactNameView);
         		//holder.fName = (TextView) convertView.findViewById(R.id.al_Text);
         		
-        		holder.m_Pos=position;
+        		
         		holder.btnReply.setOnClickListener(m_BtnReplyClickListener);
         		holder.btnReply.setOnLongClickListener(m_BtnReplyLongClickListener);
         		
@@ -413,6 +413,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         	{
         		holder = (ViewHolder) convertView.getTag();
         	}
+        	
+        	holder.m_Pos=position;
 /*
     		if(position%2!=0)
     			convertView.setBackgroundColor(ColorDark);
@@ -422,6 +424,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     		
         	if(m_CallCursor.moveToPosition(position) )
         	{
+        		
+        		
         		String callDate = (String) DateFormat.format("dd MMM.kk:mm", m_CallCursor.getLong(ActLogTableHelper._fdate) );
         		holder.fDateTime.setText(callDate);
         		
@@ -588,81 +592,13 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 			final ViewHolder holder = (ViewHolder) parent.getTag();          	
 			if (holder!=null) 
 			{
-				AlertDialog.Builder builder;
-				final AlertDialog alertDialog;
-
-				LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(LAYOUT_INFLATER_SERVICE);
-				View layout = inflater.inflate(R.layout.dlgreply,null);//(ViewGroup) findViewById(R.id.main)
 				
-				Button btnSMS = (Button) layout.findViewById(R.id.dlgreply_btnSMS);
-				
-
-				
-
-				builder = new AlertDialog.Builder(mContext);
-				builder.setView(layout);
-				alertDialog = builder.create();
-
-
-				btnSMS.setOnClickListener(new OnClickListener() {
-					
-					@Override
-					public void onClick(View v) {
-						Intent data = new Intent();
-						data.putExtra("ContactNumber", holder.fNumber.getText());
-						alertDialog.dismiss();
-						
-						
-						
-						
-					}
-				});				
-				
-				alertDialog.show();
-				
-
-				
-				
-				/*
-				final CharSequence[] items = {"Make call", "Write SMS"};
-
-				AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-				builder.setTitle("do somthing");
-				builder.setItems(items, new DialogInterface.OnClickListener() {
-				    public void onClick(DialogInterface dialog, int item) {
-				        Toast.makeText(getApplicationContext(), items[item], Toast.LENGTH_SHORT).show();
-				    }
-				});
-				AlertDialog alert = builder.create();
-				alert.show();
-				*/
-				
-				//Toast.makeText(mContext,"Long press "+name_view.getText(),Toast.LENGTH_SHORT).show();
-				/*Intent result = new Intent();
-			       result.setClassName("com.savinov3696.phone.log", "com.savinov3696.phone.log.About");
-			       startActivity(result);*/
-				/*
 				Intent i = new Intent(mContext, DlgReply.class);
 			    i.putExtra("ReplyOnActType", holder.m_Type );
 			 	i.putExtra("ContactName", holder.getNameView().getText());
 			 	i.putExtra("ContactNumber", holder.fNumber.getText() );
 		    	startActivityForResult(i, 0);
-		    	*/
-				/*
-				final CharSequence[] myitems= {"call","sms"};
-				Dialog dlg=new AlertDialog.Builder(PhonedroidActivity.this)
-	                .setTitle("title")
-	                .setItems(myitems, new DialogInterface.OnClickListener() {
-	                    public void onClick(DialogInterface dialog, int which) {
-	                        //String[] items = getResources().getStringArray(myitems);
-	                        new AlertDialog.Builder(PhonedroidActivity.this)
-	                                .setMessage("You selected: " + which + " , " + myitems[which])
-	                                .show();
-	                    }
-	                })
-	                .create();
-				dlg.show();
-				*/
+		    	
 				return true;
 			}//if (holder!=null) 
 			
