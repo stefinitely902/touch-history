@@ -41,16 +41,21 @@ fdate DESC,  "order" DESC
 //---------------------------------------------------------------------------------------
  
 */
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 
-import com.savinov3696.phone.log.ActLogTableHelper.TempContact;
+import com.savinov3696.phone.log.ActLogTableHelper.ContactInfo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
+import android.content.AsyncQueryHandler;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -58,9 +63,15 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteDatabaseCorruptException;
+import android.database.sqlite.SQLiteDiskIOException;
+import android.database.sqlite.SQLiteFullException;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.provider.ContactsContract.Contacts;
 import android.telephony.PhoneNumberUtils;
 import android.text.format.DateFormat;
@@ -87,11 +98,35 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.ViewFlipper;
+import  android.view.View.OnFocusChangeListener;
 
 public class PhonedroidActivity extends  Activity//ListActivity//ListActivity 
 								implements ListView.OnScrollListener
 																	 
 {
+	private static final String TAG = "RecentCallsSmsList";
+	
+
+
+
+    static abstract class ConnectionInfo
+    {
+    	abstract public ContactInfo	getContactInfo();
+    	abstract public long 		getDate();
+    	abstract public String 		getContent();// call=duration, SMS -text
+    	abstract public int 		getType();
+    }
+    
+    static final class ConnectionInfoData {
+    	ContactInfo		mContact;
+    	public long 	mDate;
+    	public long 	mData;
+    	public long 	mType;
+    }    
+    
+   
+    
+	
 	/* непонятно,почему нельзя желать #DEFINE и так накладно обращаться к ресурсам через ColorDark)
 	сделаем переменные :( и инициализируем их из конструктора взяв из ресурсов? Сразу?*/
 	public static final int ColorIncoming=0xFF96C832;
@@ -108,6 +143,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	private static ActLogTableHelper 	myHelper;
 	private static Cursor				m_CallCursor;
 	
+	
+	
 	public static final String query_group_by_account= "SELECT  *  FROM ActLog s  WHERE _ID = "+
         												"(SELECT _ID FROM ActLog si WHERE   si.faccount = s.faccount "+
         												"ORDER BY si.faccount DESC, si.fdate DESC, si._ID DESC LIMIT 1 )"+
@@ -118,7 +155,16 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 	private static boolean mBusy = false;
 
 
-
+	final long globalstartTime = System.currentTimeMillis();
+	long globalstartCall = System.currentTimeMillis();
+	
+	final void LogTimeAfterStart(String place)
+	{
+		long cur=System.currentTimeMillis();
+		
+        Log.d(TAG, "elapsed: STARTUP="+(cur-globalstartTime)+"\tLASTCALL="+(cur-globalstartCall)+"\t"+place );
+        globalstartCall=cur;
+	}
 	
 	
 	public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount,
@@ -133,48 +179,61 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	switch (scrollState) 
         {
         	default:
-    	    case OnScrollListener.SCROLL_STATE_FLING:
-    	        	mBusy = true;
-            		break;
         	case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL: // может быть во время двигания пальцем загружать ?
-        			Log.d("PAINT VIEW","SCROLL_STATE_TOUCH_SCROLL");
-        			//	mBusy = true;
-        		    //break;
+        			LogTimeAfterStart("SCROLL_STATE_TOUCH_SCROLL");
+       				mBusy = true;
+        		    break;
+    	    case OnScrollListener.SCROLL_STATE_FLING:
+    	    		
+    	    		LogTimeAfterStart("SCROLL_STATE_FLING");
+    	    		
+    	        	//final ListView lst = (ListView ) findViewById(R.id.listView1);
+    	        	
+    	    		//mBusy = true;
+    	    		//break;
+        		    
 			case OnScrollListener.SCROLL_STATE_IDLE:
-					Log.d("PAINT VIEW", "SCROLL_STATE_IDLE");
+					LogTimeAfterStart("SCROLL_STATE_IDLE start");
+				
             		mBusy = false;
 					
 					//int first = view.getFirstVisiblePosition();
 					final int count = view.getChildCount();
 					
-					//создадим справочник номер-holder элемнтов где надо поискать имена которые надо бы поискать)
-					Map<String, ViewHolder > num_name =  new HashMap<String,ViewHolder>();
-					// + создадим массив номеров по которым надо искать контакты
+										
+					// TODO если одинаковое имя в линейном списке???
+					// 1 Создать список(массив) ViewHolder`ов нуждающихся в обновлении
+					Vector<ViewHolder> ItemHolder = new Vector<ViewHolder>();
+					// 2 Создать сет(справочник номер-инфо) номеров
+					Set<String> nums=new HashSet<String>();
+					
 	            	for (int i=0; i<count ; i++)
 	            	{
 	            		final ViewHolder holder = (ViewHolder) view.getChildAt(i).getTag();
 	            		if ( holder!=null && holder.m_State==1 )
 	            		{
 	            			final String number = (String)holder.fNumber.getText();//берём номер контака
-	            			num_name.put(number,holder);
+	            			nums.add(number);
+	            			ItemHolder.addElement(holder);
 	            			holder.m_State=0;
 	            		}
 	            	}
-	            	
-	            	if(num_name.size()>0)
+
+					// 3 выполнить запрос, имён вернуть справочник номер-инфо о контакте
+	            	Map<String, ContactInfo > ret_num_contact=ActLogTableHelper.GetContactInfoMap(nums,getContentResolver());
+	            	if(ret_num_contact!=null )
 	            	{
-	            		String[]  account = new String[num_name.size()];
-		            	num_name.keySet().toArray(account);
-		            	final TempContact[] tmp= ActLogTableHelper.GetTempContactNames(account,getContentResolver());//ищем имя	
-		            	if(tmp!=null)
-		            		for (int i=0;i<tmp.length;++i) 
-		            		{
-		            			final ViewHolder holder = num_name.get(tmp[i].m_Number);
-		            			holder.ShowContactName(tmp[i].TryGetAltName() );
-		            		}//for (int i=0;i<tmp.length;++i)
-	            		
-	            	}//if(num_name.size()>0)
-	            	
+	            		for (int i=0; i<ItemHolder.size() ; i++)
+	            		{
+	            			final ViewHolder holder=ItemHolder.get(i);
+	            			final String number = (String)holder.fNumber.getText();//берём номер контака
+	            			final ContactInfo contact=ret_num_contact.get(number);
+	            			if(contact!=null)
+	            				holder.ShowContactName(contact.TryGetAltName());
+	            		}//for (int i=0; i<ItemHolder.size() ; i++)
+	            	}//if(ActLogTableHelper.GetContactInfoMap(num_contact,getContentResolver())>0 )
+
+	            	LogTimeAfterStart("SCROLL_STATE_IDLE end");
 
 
             break;//case OnScrollListener.SCROLL_STATE_IDLE:
@@ -182,13 +241,11 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         }
     }
 	
-	
-
-	
 
 //---------------------------------------------------------------------------------------	
     @Override public void onCreate(Bundle savedInstanceState) 
     {
+
     	setContentView(R.layout.main);
     	// Typing here goes to the dialer
     	
@@ -200,24 +257,37 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 
         lst.setOnScrollListener(this);
         
+        lst.setOnFocusChangeListener(new OnFocusChangeListener() {
+			@Override
+			public void onFocusChange(View v, boolean hasFocus) {
+				LogTimeAfterStart("OnFocusChangeListener hasFocus="+hasFocus);
+				final ListView lst = (ListView ) v;
+		    	if(v!=null && hasFocus)
+		    		onScrollStateChanged(lst, SCROLL_STATE_IDLE);
+			}
+        });
+        
         lst.setOnItemClickListener(new OnItemClickListener() {
         	@Override
         	public void onItemClick(AdapterView<?> parent, View v, int position, long id)
             {
         		//v.setBackgroundColor(0xFFFF0000);
-        		Log.d("myinfo", "!!!!!!!!!!onItemClick");
+        		Log.d(TAG, "!!!!!!!!!!onItemClick");
                 
             }
         });
-    	
+
         
-        final long startTime = System.currentTimeMillis(); 
+         
         myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
+        
         m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
-        long elapsedTime = System.currentTimeMillis() - startTime;
-        Log.d("RAW QUERY", "elapsedTime = "+elapsedTime);
+        //m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_nogroup, null);
+        
         
         super.onCreate(savedInstanceState);
+        
+        LogTimeAfterStart("onCreateEnd");
 
     }
 //---------------------------------------------------------------------------------------
@@ -225,54 +295,41 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     {
     	m_ScrollToTop = true;
     	super.onStart();
+    	LogTimeAfterStart("onStartEnd");
     	
     }
 //---------------------------------------------------------------------------------------
     @Override protected void onResume() 
     {
-    	if (m_Adapter != null) 
-    	{
-    		//m_Adapter.clearCache();
-    	}
-        
-    	
-    	
     	super.onResume();
+    	
+    	LogTimeAfterStart("onResumeEnd");
     }//protected void onResume()
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onPause() 
     {
         super.onPause();
-        Log.d("myinfo", "start\t onPause");
-        Log.d("myinfo", "end\t onPause");
+        LogTimeAfterStart("onPauseEnd");
     }   
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onStop() 
     {
-        Log.d("myinfo", "start\t onStop");
         super.onStop();
-
-        
-        //m_CallCursor.close();
-        
-        //finish();
-        Log.d("myinfo", "end\t onStop");
-    }
+        LogTimeAfterStart("onStopEnd");
+	}
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onDestroy() 
     {
+    	LogTimeAfterStart("onDestroyStart");
     	super.onDestroy();
-    	
-    	
-    	
-    	Log.d("myinfo", "start\t onDestroy");
+
     	SQLiteDatabase db = myHelper.getWritableDatabase();//  Access to database objects
     	db.close();
     	
-    	Log.d("myinfo", "end\t onDestroy");
+    	LogTimeAfterStart("onDestroyEnd");
     }    
 
 
@@ -316,65 +373,54 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     //static 
     private class MyListAdapter extends BaseAdapter //implements 	//OnClickListener , 
     															//OnLongClickListener
-    															
-    															
     {
     	private Context 		mContext;
     	private LayoutInflater  mInflater;
     	
-    	final OnClickListener			m_BtnReplyClickListener=new OnClickListener()
-    																{@Override
-																		public void onClick(View view)
-    																	{
+    	final OnClickListener			m_BtnReplyClickListener=new OnClickListener(){
+    																	@Override
+																		public void onClick(View view){
     																		onReplyClick(view);
     																	}
     																};
-    	
-    	final OnLongClickListener		m_BtnReplyLongClickListener=new OnLongClickListener()
-    																{@Override
-    																	public boolean 	onLongClick(View v)
-    																	{
-    																	return onLongReplyClick(v);
+    	final OnLongClickListener		m_BtnReplyLongClickListener=new OnLongClickListener(){
+    																	@Override
+    																	public boolean 	onLongClick(View v){
+    																		return onLongReplyClick(v);
     																	}
     																};
-    																
-	    final OnClickListener			m_ItemClickListener=new OnClickListener()
-	    													{@Override
-																public void onClick(View view)
-	    														{
-	    															Log.d("myinfo", "!!!!!!!!!!onItemClick");												
+	    final OnClickListener			m_ItemClickListener=new OnClickListener(){
+	    														@Override
+																public void onClick(View view)	{
+	    															Log.d(TAG, "!!!!!!!!!!onItemClick");												
 	    														}
 	    													};
-    																
-    														
-;
-    	
-    	//---------------------------------------------------------------------------------------
-
+//---------------------------------------------------------------------------------------
     	public MyListAdapter(Context context) 
     	{
-    		
-    		
-    		if(context!=null)
-            {
+    		if(context!=null){
             	mContext = context;
 	            //mInflater = LayoutInflater.from(context);
             	mInflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             }
         }
 
-        public int getCount() 
-        {
+        public int getCount() {
         	if(m_CallCursor!=null)
         		return m_CallCursor.getCount();
         	return 0;
         }
-
-        public Object getItem(int position) {	return position;	}
-        public long getItemId(int position) {	return position;	}
+        public Object getItem(int position){
+        	return position;	
+        }
+        public long getItemId(int position) {	
+        	return position;	
+        }
 
         public View getView(int position, View convertView, ViewGroup parent) 
         {
+        	
+        	
         	ViewHolder holder=null;
         	
         	if ( convertView == null ) 
@@ -435,7 +481,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         		holder.fNumber.setAnimation(null);
         		holder.fNumber.setText(contactNumber);
         		
-        		Log.d("PAINT VIEW", "SET NUM "+contactNumber);
+        		
+        		
         		final TextView name_view = ((TextView)holder.mFlipper.getCurrentView());
         		name_view.setText(contactNumber);//if(animation_on)
 
@@ -519,6 +566,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
                 	
                 }//switch(type)
                 
+                /*
         		if (!mBusy) 
         		{
         			
@@ -529,11 +577,12 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         				holder.ShowContactName(tmp[0].TryGetAltName());
         		}
         		else 
+        			*/
         		{
         			holder.m_State=1;
         		}
-
-                
+        		
+        		LogTimeAfterStart("SET NUM "+ contactNumber+ " POS="+position);
                 
 
         	}//if(m_CallCursor!=null )
@@ -544,7 +593,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 
 		public void onReplyClick(View view) 
 		{
-			Log.d("myinfo", "onReplyClick");
+			Log.d(TAG, "onReplyClick");
 			
 			//View parent=(View)view.getParent();
 			//ViewHolder holder = (ViewHolder) parent.getTag();
@@ -610,7 +659,7 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     @Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) 
 	{
-    	Log.d("myinfo", "onActivityResult requestCode="+requestCode+" resultCode="+resultCode);
+    	Log.d(TAG, "onActivityResult requestCode="+requestCode+" resultCode="+resultCode);
     	
     	if(data!=null && requestCode==0)
 		{

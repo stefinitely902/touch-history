@@ -1,5 +1,6 @@
 package com.savinov3696.phone.log;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -126,27 +127,38 @@ public class ActLogTableHelper extends SQLiteOpenHelper
         
     } 		
 //---------------------------------------------------------------------------------------
-    public static final class TempContact
-    {
-    	String m_Name;
-    	long   m_ID;
-    	String m_NameAlt;
-    	String m_Number;
-    	
-    	TempContact(String name,long id)
-    	{
-    		m_Name=name;
-    		m_ID=id;
+    static final class ContactInfo {
+        public long 	m_PersonId;
+        public int 		m_AccountType;	// phone(subtype: mobile,home,work)=0, email, SIP  				
+        public String	m_Account;	    // phonenumber,
+
+        public String m_Name;
+        public String m_NameAlt;
+        
+        ContactInfo()
+        {
+    		m_Name=null;
+    		m_PersonId=0;
     		m_NameAlt=null;
-    	}//TempContact
+    		m_Account=null; 
+    		m_AccountType=0;
+        }
     	
-    	TempContact(String name,long id,String name_alt,String number)
+    	ContactInfo(String name,long id)
     	{
     		m_Name=name;
-    		m_ID=id;
+    		m_PersonId=id;
+    		m_NameAlt=null;
+    	}//ContactInfo
+    	
+    	ContactInfo(String name,long id,String name_alt, String number)
+    	{
+    		m_Name=name;
+    		m_PersonId=id;
     		m_NameAlt=name_alt;
-    		m_Number=number;
-    	}//TempContact    	
+    		m_Account=number;
+    		m_AccountType=0;
+    	}//ContactInfo    	
     	
     	final String TryGetAltName() 
     	{
@@ -155,7 +167,7 @@ public class ActLogTableHelper extends SQLiteOpenHelper
 			return m_Name;
     	}
     	
-    }//private static final class TempContact
+    }//private static final class ContactInfo
 //---------------------------------------------------------------------------------------    
     protected void CopyFromCallLogProvider(Context context,SQLiteDatabase db)
     {
@@ -260,13 +272,13 @@ public class ActLogTableHelper extends SQLiteOpenHelper
   //---------------------------------------------------------------------------------------    
     final static public long GetContactIDByNumber(String account,ContentResolver resolver)
     {
-    	final TempContact tmp=GetTempContactIDByNumber(account,resolver);
+    	final ContactInfo tmp=GetContactInfoIDByNumber(account,resolver);
     	if(tmp!=null)
-    		return tmp.m_ID;
+    		return tmp.m_PersonId;
    		return 0;
     }    
 //---------------------------------------------------------------------------------------    
-    final static public TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
+    final static public ContactInfo GetContactInfoIDByNumber(String account,ContentResolver resolver)
     {
    		if(resolver!=null)
    		{
@@ -285,11 +297,11 @@ public class ActLogTableHelper extends SQLiteOpenHelper
    		    	for(int k=0;k<cur.getColumnCount();++k)
    		    		values[k]=cur.getColumnName(k)+" =  "+cur.getString(k);
    		    	*/
-   		    	return new TempContact(cur.getString(0),cur.getLong(1));
+   		    	return new ContactInfo(cur.getString(0),cur.getLong(1));
     		}//if(cur.moveToFirst())
   		}//if(resolver!=null)
    		return null;   	
-    }//static private TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
+    }//static private ContactInfo GetContactInfoIDByNumber(String account,ContentResolver resolver)
 //---------------------------------------------------------------------------------------    
     
     final static public String GetContactNameByID(long contact_id,ContentResolver resolver)
@@ -331,11 +343,11 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     }//static public String GetContactNameByID(long id,Context context)
     
   //---------------------------------------------------------------------------------------    
-    final static public TempContact[] GetTempContactNames(String[] account,ContentResolver resolver)
+    final static public Map<String,ContactInfo> GetContactInfoMap(Set<String> nums,ContentResolver resolver)
     {
     	final long startTime = System.currentTimeMillis();
     	
-    	if(account.length>0 && resolver!=null)
+    	if(nums.size()>0 && resolver!=null)
    		{
    			Uri id_uri = Data.CONTENT_URI;
    			
@@ -345,21 +357,21 @@ public class ActLogTableHelper extends SQLiteOpenHelper
    													,"display_name_alt" };// {	Phone.CONTACT_ID };
    			
    			String   where=Data.MIMETYPE + "='" + Phone.CONTENT_ITEM_TYPE + "' AND (";
-   			final String[] where_arg=new String[account.length];
-   			for(int i=0;i<account.length;++i)
-    		{
-   				where+=Phone.NUMBER+ "=?";
-   				if(i<(account.length-1))
-   					where+=" OR ";
-   				where_arg[i]=String.valueOf(account[i]);
-    		}
-   			where+=" )";
+   			final String[] where_arg=new String[nums.size()];
    			
+   			int i=0;
+            Iterator<String> it = nums.iterator();
+            while(it.hasNext())
+            {
+            	where+=Phone.NUMBER+ "=? OR "; 
+   				where_arg[i++]=it.next();
+            }
+   			
+   			where=where.substring(0, where.length()-3)+")";
    			
     		Cursor cur = resolver.query(id_uri,columns,where,where_arg,null);
-    		TempContact[] tmp=new TempContact[cur.getCount()];
-   		    int i=0;
-
+    		Map<String, ContactInfo > ret_num_contact =  new HashMap<String,ContactInfo>();
+    		//cur.getCount()==finded contact count
    		    while(cur.moveToNext())
    		    {
    		    	/*
@@ -367,18 +379,21 @@ public class ActLogTableHelper extends SQLiteOpenHelper
    		    	for(int k=0;k<cur.getColumnCount();++k)
    		    		values[k]=cur.getColumnName(k)+" =  "+cur.getString(k);
    		    	*/
-   		    	tmp[i++]= new TempContact(cur.getString(2),cur.getLong(0),cur.getString(3),cur.getString(1) );
+   		    	//ContactInfo(String name,long id,String name_alt, String number)
+   		    	final String num=cur.getString(1);
+   		    	final ContactInfo ci=new ContactInfo(cur.getString(2),cur.getLong(0),cur.getString(3),num );
+
+   		    	ret_num_contact.put(num, ci);
+   		    	
+   		    	
     		}//if(cur.moveToNext())
-   		    
-        	
             long elapsedTime = System.currentTimeMillis() - startTime;
-            Log.d("PAINT VIEW", "QUERY CONTACT NumCount=" + account.length+"\tContCount="+tmp.length+"\ttime="+elapsedTime);
-            
-   		    return tmp;
+            Log.d("RecentCallsSmsList", "QUERY CONTACT NumCount=" + nums.size()+"\tContCount="+cur.getCount()+"\ttime="+elapsedTime);
+   		    return ret_num_contact;
    		    
   		}//if(resolver!=null)
    		return null;   	
-    }//static private TempContact GetTempContactIDByNumber(String account,ContentResolver resolver)
+    }//static private ContactInfo GetContactInfoIDByNumber(String account,ContentResolver resolver)
 //---------------------------------------------------------------------------------------       
 
 
