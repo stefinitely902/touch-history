@@ -2,8 +2,10 @@ package com.savinov3696.phone.log;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.ContactsContract.Contacts;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TableRow;
@@ -23,7 +25,7 @@ public class DlgReply extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
    	{
-      	setContentView(R.layout.dlgreply);
+		setContentView(R.layout.dlgreply);
       	
 		final TableRow TableRow1 = (TableRow) findViewById(R.id.tableRow1);
 		final TableRow TableRow2 = (TableRow) findViewById(R.id.tableRow2);

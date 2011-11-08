@@ -43,6 +43,8 @@ fdate DESC,  "order" DESC
 */
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -57,10 +59,12 @@ import android.app.Dialog;
 import android.app.ListActivity;
 import android.content.AsyncQueryHandler;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabaseCorruptException;
@@ -72,10 +76,18 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.RemoteException;
+import android.provider.CallLog;
+import android.provider.ContactsContract;
+import android.provider.CallLog.Calls;
 import android.provider.ContactsContract.Contacts;
 import android.telephony.PhoneNumberUtils;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -101,7 +113,7 @@ import android.widget.ViewFlipper;
 import  android.view.View.OnFocusChangeListener;
 
 public class PhonedroidActivity extends  Activity//ListActivity//ListActivity 
-								implements ListView.OnScrollListener
+								implements ListView.OnScrollListener, View.OnCreateContextMenuListener
 																	 
 {
 	private static final String TAG = "RecentCallsSmsList";
@@ -149,7 +161,10 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         												"(SELECT _ID FROM ActLog si WHERE   si.faccount = s.faccount "+
         												"ORDER BY si.faccount DESC, si.fdate DESC, si._ID DESC LIMIT 1 )"+
         												" ORDER BY fdate DESC";
+	
 	public static final String query_nogroup="SELECT * FROM ActLog ORDER BY fdate DESC";
+	
+	public static final String query_TouchRescent="SELECT * FROM TouchRescent ORDER BY fdate DESC";
 
 	
 	private static boolean mBusy = false;
@@ -157,6 +172,125 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
 
 	final long globalstartTime = System.currentTimeMillis();
 	long globalstartCall = System.currentTimeMillis();
+	
+
+	
+	private Handler handler = new Handler();
+	private ContactPeopleContentObserver peopleObserver = null;	
+	class ContactPeopleContentObserver extends ContentObserver 
+	{
+		  public ContactPeopleContentObserver( Handler h ) 
+		  {
+			super( h );
+		  }
+
+		  public boolean 	deliverSelfNotifications()
+		  {
+			  return false;
+		  }
+		  
+		  
+		  
+		  public void onChange(boolean selfChange) 
+		  {
+			  //super.onChange(selfChange);
+			  
+			  Cursor cur = getContentResolver().query( CallLog.Calls.CONTENT_URI, null, null,  null, Calls._ID + " DESC ");
+			  if (cur.moveToNext())
+		      {     
+				  String id=cur.getString(cur.getColumnIndex(Calls._ID ));
+				  
+				  
+				  String num=cur.getString(cur.getColumnIndex(Calls.NUMBER ));
+				  int type = cur.getInt(cur.getColumnIndex(Calls.TYPE));
+				  long date = cur.getInt(cur.getColumnIndex(Calls.DATE));
+				  
+				  Log.d( "resolver", "calllog number="+num+" type="+type+" DATE="+date+" id="+id);
+				  
+				  myHelper.CopyCallCursor(cur);
+		      }
+			  
+			  
+		  }
+	}	
+
+	
+	
+	private Handler mSMShandler = new Handler();
+	private SmsContentObserver mSmsObserver = null;	
+	class SmsContentObserver extends ContentObserver 
+	{
+		  public SmsContentObserver( Handler h ) 
+		  {
+			super( h );
+		  }
+
+		  public boolean 	deliverSelfNotifications()
+		  {
+			  return false;
+		  }
+		  
+		  
+		  
+		  public void onChange(boolean selfChange) 
+		  {
+			  //super.onChange(selfChange);
+			  Uri uriSMSURI = Uri.parse("content://sms");
+			  Cursor cur = getContentResolver().query( uriSMSURI, null, null,  null, Calls.DATE + " DESC ");
+			  if (cur.moveToNext())
+		      {     
+				myHelper.CopySMSCursor(cur);
+		      }
+			  
+			  
+		  }
+	}		
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public class MyPhoneStateListener extends PhoneStateListener 
+	{
+
+		public void onCallStateChanged(int state,String incomingNumber)
+		  {
+
+		  switch(state)
+		  {
+
+		    case TelephonyManager.CALL_STATE_IDLE:
+
+		      Log.d("DEBUG", "IDLE");
+
+		    break;
+
+		    case TelephonyManager.CALL_STATE_OFFHOOK:
+
+		      Log.d("DEBUG", "OFFHOOK исходящий дозвон "+incomingNumber);
+
+		    break;
+
+		    case TelephonyManager.CALL_STATE_RINGING:
+
+		      Log.d("DEBUG", "RINGING входящий дозвон"+incomingNumber);
+
+		    break;
+
+		    }
+		  } 
+
+	}		
+	
+	
+	
 	
 	final void LogTimeAfterStart(String place)
 	{
@@ -242,18 +376,22 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     }
 	
 
+    ListView mList;
 //---------------------------------------------------------------------------------------	
     @Override public void onCreate(Bundle savedInstanceState) 
     {
+    	super.onCreate(savedInstanceState);
 
     	setContentView(R.layout.main);
     	// Typing here goes to the dialer
     	
     	setDefaultKeyMode(DEFAULT_KEYS_DIALER);
     	final ListView lst = (ListView ) findViewById(R.id.listView1);
+    	mList=lst;
     	m_Adapter=new MyListAdapter(this);
     	lst.setAdapter( m_Adapter );
     	lst.setItemsCanFocus(false);
+    	lst.setOnCreateContextMenuListener(this);
 
         lst.setOnScrollListener(this);
         
@@ -280,12 +418,32 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
         
          
         myHelper = new ActLogTableHelper(this,ActLogTableHelper.m_DBName , null, ActLogTableHelper.m_DBVersion);
-        
-        m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
+        m_CallCursor  = myHelper.getReadableDatabase().rawQuery("SELECT * FROM TouchRescent ORDER BY fdate DESC", null);
+        //m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_group_by_account, null);
         //m_CallCursor  = myHelper.getReadableDatabase().rawQuery(query_nogroup, null);
         
+
         
-        super.onCreate(savedInstanceState);
+        ContentResolver cr = getContentResolver();
+        peopleObserver = new ContactPeopleContentObserver( handler );
+  	  	cr.registerContentObserver( CallLog.Calls.CONTENT_URI, true, peopleObserver ); 
+        
+        
+  	  	mSmsObserver = new SmsContentObserver(mSMShandler );
+  	  	cr.registerContentObserver( CallLog.Calls.CONTENT_URI, true, mSmsObserver ); 
+
+  	  	
+  	  	
+        
+	    MyPhoneStateListener phoneListener=new MyPhoneStateListener();
+	    TelephonyManager telephony = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
+	    telephony.listen(phoneListener,PhoneStateListener.LISTEN_CALL_STATE);
+	    
+        
+	    mQueryHandler = new QueryHandler(this);
+	    
+	    
+        
         
         LogTimeAfterStart("onCreateEnd");
 
@@ -303,6 +461,8 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     {
     	super.onResume();
     	
+    	resetNewCallsFlag();
+    	
     	LogTimeAfterStart("onResumeEnd");
     }//protected void onResume()
 //---------------------------------------------------------------------------------------    
@@ -317,12 +477,30 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     protected void onStop() 
     {
         super.onStop();
+
         LogTimeAfterStart("onStopEnd");
 	}
 //---------------------------------------------------------------------------------------    
     @Override
     protected void onDestroy() 
     {
+        
+    	ContentResolver cr = getContentResolver();
+        if( peopleObserver != null )		
+        {
+  		    cr.unregisterContentObserver( peopleObserver );
+  			peopleObserver = null;
+  			
+  	  	}
+
+        if(mSmsObserver!=null)
+        {
+        	cr.unregisterContentObserver( mSmsObserver );
+        	mSmsObserver=null;
+        }
+		 
+
+    	
     	LogTimeAfterStart("onDestroyStart");
     	super.onDestroy();
 
@@ -331,7 +509,247 @@ public class PhonedroidActivity extends  Activity//ListActivity//ListActivity
     	
     	LogTimeAfterStart("onDestroyEnd");
     }    
+//---------------------------------------------------------------------------------------
+    /** The projection to use when querying the call log table */
+    static final String[] CALL_LOG_PROJECTION = new String[] {
+            Calls._ID,
+            Calls.NUMBER,
+            Calls.DATE,
+            Calls.DURATION,
+            Calls.TYPE,
+            Calls.CACHED_NAME,
+            Calls.CACHED_NUMBER_TYPE,
+            Calls.CACHED_NUMBER_LABEL
+    };
+    
+    private static final int QUERY_TOKEN = 153;
+    private static final int UPDATE_TOKEN = 154;
+    
+    private static final class QueryHandler extends AsyncQueryHandler {
+        private final WeakReference<PhonedroidActivity> mActivity;
 
+        /**
+         * Simple handler that wraps background calls to catch
+         * {@link SQLiteException}, such as when the disk is full.
+         */
+        protected class CatchingWorkerHandler extends AsyncQueryHandler.WorkerHandler {
+            public CatchingWorkerHandler(Looper looper) {
+                super(looper);
+            }
+
+            @Override
+            public void handleMessage(Message msg) {
+                try {
+                    // Perform same query while catching any exceptions
+                    super.handleMessage(msg);
+                } catch (SQLiteDiskIOException e) {
+                    Log.w(TAG, "Exception on background worker thread", e);
+                } catch (SQLiteFullException e) {
+                    Log.w(TAG, "Exception on background worker thread", e);
+                } catch (SQLiteDatabaseCorruptException e) {
+                    Log.w(TAG, "Exception on background worker thread", e);
+                }
+            }
+        }
+
+        @Override
+        protected Handler createHandler(Looper looper) {
+            // Provide our special handler that catches exceptions
+            return new CatchingWorkerHandler(looper);
+        }
+
+        public QueryHandler(Context context)
+        {
+            super(context.getContentResolver());
+            mActivity = new WeakReference<PhonedroidActivity>((PhonedroidActivity) context);
+        }
+
+
+        @Override
+        protected void onQueryComplete(int token, Object cookie, Cursor cursor) 
+        {
+            final PhonedroidActivity activity = mActivity.get();
+            if (activity != null && !activity.isFinishing()) {
+                final PhonedroidActivity.MyListAdapter callsAdapter = activity.m_Adapter;
+                
+              
+                
+                if (activity.m_ScrollToTop) 
+                {
+                    if (activity.mList.getFirstVisiblePosition() > 5) 
+                    {
+                        activity.mList.setSelection(5);
+                    }
+                    activity.mList.smoothScrollToPosition(0);
+                    activity.m_ScrollToTop = false;
+                }
+            } else {
+                cursor.close();
+            }
+        }
+    }    
+    
+    
+    private QueryHandler mQueryHandler;
+    
+  //---------------------------------------------------------------------------------------
+    private void resetNewCallsFlag() {
+        // Mark all "new" missed calls as not new anymore
+        StringBuilder where = new StringBuilder("type=");
+        where.append(Calls.MISSED_TYPE);
+        where.append(" AND new=1");
+
+        ContentValues values = new ContentValues(1);
+        values.put(Calls.NEW, "0");
+        
+        //String[] arg = null;
+        //int i = getContentResolver().update(Calls.CONTENT_URI, values, where.toString(), arg);
+        
+
+        mQueryHandler.startUpdate(UPDATE_TOKEN, null, Calls.CONTENT_URI,values, where.toString(), null);
+        
+
+    }
+//---------------------------------------------------------------------------------------
+    // need MODIFY_PHONE_STATE
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        String Log_Tag = "log";
+        try
+            {
+                Class serviceManagerClass = Class.forName("android.os.ServiceManager");
+                Method getServiceMethod = serviceManagerClass.getMethod("getService", String.class);
+                Object phoneService = getServiceMethod.invoke(null, "phone");
+                Class ITelephonyClass = Class.forName("com.android.internal.telephony.ITelephony");
+                Class ITelephonyStubClass = null;
+                for(Class clazz : ITelephonyClass.getDeclaredClasses())
+                {
+                    if (clazz.getSimpleName().equals("Stub"))
+                    {
+                        ITelephonyStubClass = clazz;
+                        break;
+                    }
+                }
+                if (ITelephonyStubClass != null)
+                {
+                    Class IBinderClass = Class.forName("android.os.IBinder");
+                    Method asInterfaceMethod = ITelephonyStubClass.getDeclaredMethod("asInterface",IBinderClass);
+                    Object iTelephony = asInterfaceMethod.invoke(null, phoneService);
+                    if (iTelephony != null)
+                    {
+                        Method cancelMissedCallsNotificationMethod = iTelephony.getClass().getMethod(
+                                "cancelMissedCallsNotification");
+                        cancelMissedCallsNotificationMethod.invoke(iTelephony);
+                    }
+                    else
+                    {
+                        Log.w(TAG, "Telephony service is null, can't call "
+                                + "cancelMissedCallsNotification");
+                    }
+                }
+                else
+                {
+                    Log.d(TAG, "Unable to locate ITelephony.Stub class!");
+                }
+            } catch (ClassNotFoundException ex)
+            {
+                Log.e(TAG,
+                        "Failed to clear missed calls notification due to ClassNotFoundException!", ex);
+            } catch (InvocationTargetException ex)
+            {
+                Log.e(TAG,
+                        "Failed to clear missed calls notification due to InvocationTargetException!",
+                        ex);
+            } catch (NoSuchMethodException ex)
+            {
+                Log.e(TAG,
+                        "Failed to clear missed calls notification due to NoSuchMethodException!", ex);
+            } catch (Throwable ex)
+            {
+                Log.e(TAG, "Failed to clear missed calls notification due to Throwable!", ex);
+            }
+    }
+    
+    //---------------------------------------------------------------------------------------
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View view, ContextMenuInfo menuInfoIn) 
+    {
+    	/*
+    	AdapterView.AdapterContextMenuInfo menuInfo;
+        try {
+             menuInfo = (AdapterView.AdapterContextMenuInfo) menuInfoIn;
+        } catch (ClassCastException e) {
+            Log.e(TAG, "bad menuInfoIn", e);
+            return;
+        }
+
+        Cursor cursor = (Cursor) m_Adapter.getItem(menuInfo.position);
+        
+        String number = cursor.getString(NUMBER_COLUMN_INDEX);
+        Uri numberUri = null;
+        boolean isVoicemail = false;
+        boolean isSipNumber = false;
+        if (number.equals(CallerInfo.UNKNOWN_NUMBER)) {
+            number = getString(R.string.unknown);
+        } else if (number.equals(CallerInfo.PRIVATE_NUMBER)) {
+            number = getString(R.string.private_num);
+        } else if (number.equals(CallerInfo.PAYPHONE_NUMBER)) {
+            number = getString(R.string.payphone);
+        } else if (PhoneNumberUtils.extractNetworkPortion(number).equals(mVoiceMailNumber)) {
+            number = getString(R.string.voicemail);
+            numberUri = Uri.parse("voicemail:x");
+            isVoicemail = true;
+        } else if (PhoneNumberUtils.isUriNumber(number)) {
+            numberUri = Uri.fromParts("sip", number, null);
+            isSipNumber = true;
+        } else {
+            numberUri = Uri.fromParts("tel", number, null);
+        }
+
+        ContactInfo info = mAdapter.getContactInfo(number);
+        boolean contactInfoPresent = (info != null && info != ContactInfo.EMPTY);
+        if (contactInfoPresent) {
+            menu.setHeaderTitle(info.name);
+        } else {
+            menu.setHeaderTitle(number);
+        }
+
+        if (numberUri != null) {
+            Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED, numberUri);
+            menu.add(0, CONTEXT_MENU_CALL_CONTACT, 0,
+                    getResources().getString(R.string.recentCalls_callNumber, number))
+                    .setIntent(intent);
+        }
+
+        if (contactInfoPresent) {
+            Intent intent = new Intent(Intent.ACTION_VIEW,
+                    ContentUris.withAppendedId(Contacts.CONTENT_URI, info.personId));
+            StickyTabs.setTab(intent, getIntent());
+            menu.add(0, 0, 0, R.string.menu_viewContact).setIntent(intent);
+        }
+
+        if (numberUri != null && !isVoicemail && !isSipNumber) {
+            menu.add(0, 0, 0, R.string.recentCalls_editNumberBeforeCall)
+                    .setIntent(new Intent(Intent.ACTION_DIAL, numberUri));
+            menu.add(0, 0, 0, R.string.menu_sendTextMessage)
+                    .setIntent(new Intent(Intent.ACTION_SENDTO,
+                            Uri.fromParts("sms", number, null)));
+        }
+
+        // "Add to contacts" item, if this entry isn't already associated with a contact
+        if (!contactInfoPresent && numberUri != null && !isVoicemail && !isSipNumber) {
+            Intent intent = new Intent(Intent.ACTION_INSERT_OR_EDIT);
+            intent.setType(Contacts.CONTENT_ITEM_TYPE);
+            intent.putExtra(Insert.PHONE, number);
+            menu.add(0, 0, 0, R.string.recentCalls_addToContact)
+                    .setIntent(intent);
+        }
+        */
+        menu.add(0, 1, 0, R.string.SendPhoneCall);
+    }
+  //---------------------------------------------------------------------------------------
 
     public static class ViewHolder  
     {

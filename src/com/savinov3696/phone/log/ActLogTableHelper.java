@@ -8,6 +8,7 @@ import java.util.Set;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.database.CursorJoiner;
 import android.database.CursorJoiner.Result;
@@ -15,6 +16,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.net.Uri;
+import android.os.Handler;
 import android.provider.CallLog.Calls;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
@@ -27,6 +29,15 @@ import android.provider.ContactsContract.RawContactsEntity;
 import android.util.Log;
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
+/**
+ * объ€вл€ем следующие данные
+
+1 TouchHistory - “абличка с данными о всех совершЄнных звонках и —ћ—ках
+2 TouchRescent - “абличка эквивалентнас TouchHistory но с уникальностью по имени аккаунта, т.е. последние действи€ контакта
+3 “риггер, который при изменении TouchRescent
+
+*/
+
 //---------------------------------------------------------------------------------------
 /**
 <a>тип действи€</a>
@@ -48,15 +59,16 @@ MMS
 public class ActLogTableHelper extends SQLiteOpenHelper 
 {
 	//индексы столбцов
-	public static final int _ID			= 0;
-	public static final int _ftype		= 1;
-	public static final int _fseen		= 2;
-	public static final int _faccount	= 3;
-	public static final int _fname		= 4;
-	public static final int _fname_id	= 5;
-	public static final int _fdate		= 6;
-	public static final int _ftheme		= 7;
-	public static final int _fdata		= 8;
+	
+	public static final int _ftype		= 0;
+	public static final int _fseen		= 1;
+	public static final int _faccount	= 2;
+	public static final int _fname		= 3;
+	public static final int _fname_id	= 4;
+	public static final int _fdate		= 5;
+	public static final int _ftheme		= 6;
+	public static final int _fdata		= 7;
+	public static final int _ID			= 8;
 	
 	public static final int GSM_CALL_INCOMING    = 1;
 	public static final int GSM_CALL_OUTGOING    = 2;
@@ -69,7 +81,13 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     public static final int MESSAGE_TYPE_OUTBOX = 14;
     public static final int MESSAGE_TYPE_FAILED = 15; // for failed outgoing messages
     public static final int MESSAGE_TYPE_QUEUED = 16; // for messages to send later
-
+    
+    
+    public static final int CALLS_TYPE_COL_IDX = 7;
+    public static final int CALLS_NUMBER_COL_IDX = 6;
+    public static final int CALLS_CACHED_NAME_COL_IDX = 5;
+    public static final int CALLS_DATE_COL_IDX = 8;
+    public static final int CALLS_DURATION_COL_IDX = 2;
 	
 	
 	private static final String m_TAG = "PhonedroidProvider";
@@ -78,19 +96,33 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     public static final int m_DBVersion = 1;
     
     private Context m_Context;
+    private SQLiteDatabase m_db;
+    
+    
+
+    
+    
+    
+    
+    
+    
     
     
 	ActLogTableHelper(Context context, String db_name, CursorFactory factory,int db_version) 
 	{
 		super(context, db_name, factory, db_version);
 		m_Context=context;
+		
+		m_db=m_Context.openOrCreateDatabase(db_name,0 , factory);
+		
 	}
 
     @Override 
     public void onCreate(SQLiteDatabase db) 
     {
-    	 db.execSQL("create table if not exists ActLog (	" +
-    			 		"_ID INTEGER 	PRIMARY KEY,"+			// пор€дковый номер записи
+    	
+    	
+    	db.execSQL("create table if not exists ActLog (	" +
         				"ftype 			INTEGER, "+				// тип действи€
         				"fseen 			BOOL, "+				// просмотрено ли
         				"faccount 		TEXT, "+ 				// номер телефона,почта,ICQ и т.д.
@@ -98,20 +130,62 @@ public class ActLogTableHelper extends SQLiteOpenHelper
         				"fname_id 		INTEGER, "+
         				"fdate  		LONG,"+ //"fdate  		TIMESTAMP,"+
         				"ftheme			TEXT,"+
-        				"fdata			TEXT"+
+        				"fdata			TEXT,"+
+        				"_ID INTEGER 	PRIMARY KEY"+			// пор€дковый номер записи
         				 ");");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_faccount ON ActLog (faccount DESC); ");
         
-        long startTime = System.currentTimeMillis();
-        CopyFromCallLogProvider(m_Context,db);
-    	long elapsedTime = System.currentTimeMillis() - startTime;
-    	Log.d("myinfo", "CopyFromCallLogProvider time="+elapsedTime);
+        
+    	String query_make_TouchRescent=	"create table if not exists TouchRescent (	" +
+										"ftype 			INTEGER, "+				// тип действи€
+										"fseen 			BOOL, "+				// просмотрено ли
+										"faccount 		TEXT	CONSTRAINT pk_account PRIMARY KEY , "+ 				// номер телефона,почта,ICQ и т.д.
+										"fname 			TEXT,"+
+										"fname_id 		INTEGER, "+
+										"fdate  		LONG,"+ //"fdate  		TIMESTAMP,"+
+										"ftheme			TEXT,"+
+										"fdata			TEXT"+
+										 ");";
+    	
+    	db.execSQL(query_make_TouchRescent);
+    	
+    	
+    	String query_tr_bu_TouchRescent=	"CREATE TRIGGER IF NOT EXISTS tr_ai_ActLog AFTER INSERT ON ActLog "+
+    										"BEGIN "+
+    									    " SELECT "+
+    							            " CASE "+
+    							            "    WHEN NEW.fdate < "+
+    							            "         (SELECT fdate FROM TouchRescent WHERE faccount=NEW.faccount) "+	
+    							                    " THEN " +
+    							                    "RAISE(IGNORE) "+ //, 'date is less than rescent'
+    							            " END; "+
+						            		"   INSERT OR REPLACE INTO TouchRescent"+
+						            		"          (ftype,fseen,faccount,fdate,ftheme,fdata)"+
+						            		"          VALUES"+
+						            		"          (NEW.ftype,NEW.fseen,NEW.faccount,NEW.fdate,NEW.ftheme,NEW.fdata); "+
+    										" END;";
+    	db.execSQL(query_tr_bu_TouchRescent);
+			//" ( datetime(NEW.fdate, 'unixepoch', 'localtime')" +
+		//" < datetime((SELECT fdate FROM TouchRescent WHERE faccount=NEW.faccount), 'unixepoch', 'localtime') ) "+
 
+//    	
+//> SELECT datetime(fdate) FROM TouchRescent WHERE faccount=NEW.faccount   )
+        
+        long startTime = 0;
+        long elapsedTime= 0;
+        		
+        		
     	startTime = System.currentTimeMillis();
         CopyFromSMSLogProvider(m_Context,db);
         elapsedTime = System.currentTimeMillis() - startTime;
         Log.d("myinfo", "CopyFromSMSLogProvider time="+elapsedTime);
-     
+
+        startTime = System.currentTimeMillis();
+        CopyFromCallLogProvider(m_Context,db);
+    	elapsedTime = System.currentTimeMillis() - startTime;
+    	Log.d("myinfo", "CopyFromCallLogProvider time="+elapsedTime);
+
+    	
 
     }// public void onCreate(SQLiteDatabase db)
 
@@ -168,7 +242,41 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	}
     	
     }//private static final class ContactInfo
-//---------------------------------------------------------------------------------------    
+  //---------------------------------------------------------------------------------------  
+    public void CopySMSCursor(Cursor cursor)
+    {
+    	int _address = cursor.getColumnIndex("address");
+    	int _date = cursor.getColumnIndex("date");
+    	int _type = cursor.getColumnIndex("type");
+    	int _subject = cursor.getColumnIndex("subject");
+    	int _body = cursor.getColumnIndex("body");
+    	int _seen = cursor.getColumnIndex("seen");
+    	ContentValues values = new ContentValues();
+		
+    	values.put("ftype", cursor.getInt(_type)+10 ); // Sms based +10
+		values.put("fseen", cursor.getLong(_seen));
+		values.put("faccount", cursor.getString(_address));
+		values.put("fdate", cursor.getLong(_date));
+		values.put("ftheme",cursor.getString(_subject));
+		values.put("fdata", cursor.getString(_body));
+		m_db.insert("ActLog",null, values);
+    }    
+//---------------------------------------------------------------------------------------  
+    public void CopyCallCursor(Cursor cursor)
+    {
+    	int _type = cursor.getColumnIndex(Calls.TYPE);
+    	ContentValues values = new ContentValues();
+    	
+		values.put("fname", cursor.getString(CALLS_CACHED_NAME_COL_IDX) );
+		values.put("faccount", cursor.getString(CALLS_NUMBER_COL_IDX));
+		values.put("ftype", cursor.getInt(CALLS_TYPE_COL_IDX));
+		values.put("fdate",cursor.getLong(CALLS_DATE_COL_IDX) );
+		values.put("fdata",cursor.getLong(CALLS_DURATION_COL_IDX)  );
+  		
+		m_db.insert("ActLog",null, values);
+    }
+    
+  //---------------------------------------------------------------------------------------
     protected void CopyFromCallLogProvider(Context context,SQLiteDatabase db)
     {
     	if( context!=null)
@@ -177,15 +285,19 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     		if(resolver!=null)
     		{
     			//Uri allCalls = Uri.parse(Уcontent://call_log/callsФ);
+    			//--------resolver.registerContentObserver(Calls.CONTENT_URI, true, new MyContentObserver(handler) );
+    			
+    			
     			Cursor cursor = resolver.query(Calls.CONTENT_URI, null, null, null,Calls.DATE + " DESC " );
     			if (cursor != null)
     	        {
     				
-    				int _type = cursor.getColumnIndex(Calls.TYPE);
-    	        	int _number = cursor.getColumnIndex(Calls.NUMBER);
-    	        	int _name = cursor.getColumnIndex(Calls.CACHED_NAME);
-    	        	int _date = cursor.getColumnIndex(Calls.DATE);
-    	        	int _duration = cursor.getColumnIndex(Calls.DURATION);
+    				//int _type = cursor.getColumnIndex(Calls.TYPE);
+    	        	//int _number = cursor.getColumnIndex(Calls.NUMBER);
+    	        	//int _name = cursor.getColumnIndex(Calls.CACHED_NAME);
+    	        	//int _date = cursor.getColumnIndex(Calls.DATE);
+    	        	//int _duration = cursor.getColumnIndex(Calls.DURATION);
+    				int _seen = cursor.getColumnIndex(Calls.NEW);
 
     	        	cursor.moveToFirst();
     	        	ContentValues values = new ContentValues();
@@ -196,13 +308,19 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     	        	
     	        	while(!cursor.isAfterLast() )
     	        	{
-    	        		values.put("fname", cursor.getString(_name) );
-    	        		values.put("faccount", cursor.getString(_number));
+    	        		//values.put("fname", cursor.getString(_name) );
+    	        		//values.put("faccount", cursor.getString(_number));
+    	        		//values.put("ftype", cursor.getInt(_type));
+    	        		//values.put("fdate",cursor.getLong(_date) );
+    	        		//values.put("fdata",cursor.getLong(_duration)  );
+    	        		values.put("fname", cursor.getString(CALLS_CACHED_NAME_COL_IDX) );
+    	        		values.put("faccount", cursor.getString(CALLS_NUMBER_COL_IDX));
+    	        		values.put("ftype", cursor.getInt(CALLS_TYPE_COL_IDX));
+    	        		values.put("fdate",cursor.getLong(CALLS_DATE_COL_IDX) );
+    	        		values.put("fdata",cursor.getLong(CALLS_DURATION_COL_IDX)  );
     	        		
-    	        		
-    	        		values.put("ftype", cursor.getInt(_type));
-    	        		values.put("fdate",cursor.getLong(_date) );
-    	        		values.put("fdata",cursor.getLong(_duration)  );
+    	        		values.put("fseen", cursor.getInt(_seen));
+
     	        		
     	        		db.insert("ActLog",null, values);
     	        		values.clear();
@@ -224,7 +342,7 @@ public class ActLogTableHelper extends SQLiteOpenHelper
     		if(resolver!=null)
     		{
     			Uri uriSMSURI = Uri.parse("content://sms");
-    			Cursor cursor = resolver.query(uriSMSURI, null, null, null,Calls.DATE + " DESC " );
+    			Cursor cursor = resolver.query(uriSMSURI, null, null, null,"_id DESC " );
     			if (cursor != null)
     	        {
     	        	//int _id = cursor.getColumnIndex("_id");
